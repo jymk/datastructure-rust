@@ -18,6 +18,7 @@ impl<T: Clone> Node<T> {
         self._val.clone()
     }
 
+    //下一个节点
     pub fn next(&self) -> Option<Self> {
         match &self._next {
             Some(v) => {
@@ -27,12 +28,14 @@ impl<T: Clone> Node<T> {
             None => None,
         }
     }
+    //下一个可变节点
     pub fn next_mut(&mut self) -> Option<&mut Self> {
         match self._next.as_mut() {
             Some(v) => Some(v.as_mut()),
             None => None,
         }
     }
+    //当前可变值
     pub fn get_mut(&mut self) -> &mut T {
         &mut self._val
     }
@@ -45,14 +48,17 @@ impl<T: Clone> List<T> {
             _len: usize::default(),
         }
     }
+    //new并在尾部增加一个值
     pub fn new_with_val(val: T) -> Self {
         let mut tmp = Self::new();
         tmp.add(val);
         tmp
     }
+    //在尾部增加一个值
     pub fn add(&mut self, val: T) {
         self.add_at_tail(val);
     }
+    //获取index下标处可变节点
     pub fn get_node_mut(&mut self, index: usize) -> Option<&mut Node<T>> {
         let mut i = 0;
         let head = &mut self._head;
@@ -68,6 +74,7 @@ impl<T: Clone> List<T> {
         }
         res
     }
+    //获取index下标处不可变值
     pub fn get(&self, index: usize) -> Option<T> {
         let mut i = 0;
         let head = &self._head;
@@ -84,6 +91,7 @@ impl<T: Clone> List<T> {
         res
     }
 
+    //头插
     pub fn add_at_head(&mut self, val: T) {
         let new_node = Box::new(Node {
             _val: val,
@@ -93,6 +101,7 @@ impl<T: Clone> List<T> {
         self._len += 1;
     }
 
+    //尾插
     pub fn add_at_tail(&mut self, val: T) {
         let len = self._len;
         let mut new_node = Some(Box::new(Node {
@@ -118,6 +127,7 @@ impl<T: Clone> List<T> {
         }
     }
 
+    //下标插
     pub fn add_at_index(&mut self, index: usize, val: T) {
         let len = self._len;
         if index > len {
@@ -157,16 +167,21 @@ impl<T: Clone> List<T> {
         }
     }
 
+    //删头
+    pub fn delete_head(&mut self) {
+        if let Some(x) = self._head.as_mut() {
+            self._head = x._next.clone();
+            self._len -= 1;
+        }
+    }
+    //删下标
     pub fn delete_at_index(&mut self, index: usize) {
         let len = self._len;
         let head = &mut self._head;
         let mut cur = head.as_mut();
         //下标为0
         if len > 0 && index == 0 {
-            if let Some(x) = cur {
-                self._head = x._next.clone();
-                self._len -= 1;
-            }
+            self.delete_head();
             return;
         }
         let mut i = 0;
@@ -187,10 +202,12 @@ impl<T: Clone> List<T> {
         }
     }
 
+    //长度
     pub fn len(&self) -> usize {
         self._len
     }
 
+    //头节点
     pub fn next(&self) -> Option<Node<T>> {
         match &self._head {
             Some(v) => {
@@ -200,14 +217,34 @@ impl<T: Clone> List<T> {
             None => None,
         }
     }
+    //可变头节点
     pub fn next_mut(&mut self) -> Option<&mut Node<T>> {
         match self._head.as_mut() {
             Some(v) => Some(v.as_mut()),
             None => None,
         }
     }
+    //清空
+    pub fn clear(&mut self) {
+        self._head = None;
+        self._len = 0;
+    }
+    //反转
+    pub fn reverse(&mut self) {
+        let mut node = &self._head;
+        let mut cur = None;
+        while let Some(x) = node.as_ref() {
+            cur = Some(Box::new(Node {
+                _val: x._val.clone(),
+                _next: cur,
+            }));
+            node = &x._next;
+        }
+        self._head = cur;
+    }
 }
 
+//暂时没用
 impl<T: Clone> Iterator for Node<T> {
     type Item = Box<Node<T>>;
 
@@ -229,9 +266,14 @@ impl<T: Clone> Default for List<T> {
 fn test() {
     let mut list = List::<i32>::new();
     println!("len:{}, list:{:?}", list._len, list);
-    list.add_at_index(0, 0);
-    list.add_at_index(1, 0);
-    list.get(0);
+    list.add(0);
+    list.add(1);
+    list.add(2);
+    list.add(3);
+    list.add(4);
+    list.add(5);
+    println!("len:{}, list:{:?}", list._len, list);
+    list.reverse();
     println!("len:{}, list:{:?}", list._len, list);
 
     // let a = Rc::new(5);

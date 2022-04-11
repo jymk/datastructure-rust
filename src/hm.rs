@@ -4,8 +4,10 @@ use std::{
     collections::hash_map::DefaultHasher,
     fmt::Debug,
     hash::{Hash, Hasher},
+    ops::Index,
 };
 
+//扩容因子
 const _FACTOR: f32 = 0.75;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -16,14 +18,17 @@ pub struct MyHashMap<K, V> {
 }
 
 impl<K: Hash + Eq + Clone, V: Clone> MyHashMap<K, V> {
-    fn get_index(&self, k: &K) -> usize {
+    //根据k获取下标
+    fn _get_index(&self, k: &K) -> usize {
         let mut hasher = DefaultHasher::new();
         k.hash(&mut hasher);
         hasher.finish() as usize % self._cap
     }
+    //默认设置容量为4
     pub fn new() -> Self {
         Self::with_cap(4)
     }
+    //new并设置容量
     pub fn with_cap(cap: usize) -> Self {
         let mut v = Vec::<Option<List<(K, V)>>>::default();
         for _ in 0..cap {
@@ -36,7 +41,7 @@ impl<K: Hash + Eq + Clone, V: Clone> MyHashMap<K, V> {
         }
     }
     pub fn put(&mut self, k: &K, v: V) {
-        let index = self.get_index(k);
+        let index = self._get_index(k);
         // println!("index:{}, k:{:?}, v:{:?}", index, k, v);
         //若k对应的v存在
         let data = self._data[index].as_mut();
@@ -67,6 +72,7 @@ impl<K: Hash + Eq + Clone, V: Clone> MyHashMap<K, V> {
                             let mut cur = dd.next();
                             while let Some(c) = &cur {
                                 let val = c.get_value().clone();
+                                //此处put递归调用理论上来说不会经过判断是否达到扩容因子
                                 new_data.put(&val.0, val.1);
                                 cur = c.next();
                             }
@@ -83,7 +89,7 @@ impl<K: Hash + Eq + Clone, V: Clone> MyHashMap<K, V> {
         }
     }
     pub fn get(&self, k: &K) -> Option<V> {
-        let index = self.get_index(k);
+        let index = self._get_index(k);
         let data = &self._data[index];
         // println!("index:{}, k:{:?}", index, k);
         // println!("index:{}, k:{:?}, data:{:?}", index, k, data);
@@ -117,7 +123,7 @@ impl<K: Hash + Eq + Clone, V: Clone> MyHashMap<K, V> {
     }
 
     pub fn remove(&mut self, k: &K) {
-        let index = self.get_index(k);
+        let index = self._get_index(k);
         let data = self._data[index].as_mut();
         match data {
             Some(v) => {
@@ -149,11 +155,13 @@ impl<K: Hash + Eq + Clone, V: Clone> MyHashMap<K, V> {
     }
 }
 
-// impl <K, V> Index<K> for MyHashMap<K, V> {
-//     type Output = *const V;
+// impl<K: Hash + Eq + Clone, V: Clone> Index<&K> for MyHashMap<K, V> {
+//     type Output = V;
 
-//     fn index(&self, index: K) -> &Self::Output {
-//         self.get(&index).expect("k out of range")
+//     fn index(&self, index: &K) -> &Self::Output {
+//         let opt_v = self.get(index);
+//         let v_ref = opt_v.as_ref();
+//         v_ref.expect("out of range")
 //     }
 // }
 #[test]
