@@ -1,10 +1,10 @@
 // use std::ops::Index;
-use crate::list::List;
+use crate::{errs::OUT_OF_RANGE, list::List};
 use std::{
     collections::hash_map::DefaultHasher,
     fmt::Debug,
     hash::{Hash, Hasher},
-    ops::Index,
+    ops::{Index, IndexMut},
 };
 
 //扩容因子
@@ -88,7 +88,37 @@ impl<K: Hash + Eq + Clone, V: Clone> MyHashMap<K, V> {
             }
         }
     }
-    pub fn get(&self, k: &K) -> Option<V> {
+    pub fn get_mut(&mut self, k: &K) -> Option<&mut V> {
+        let index = self._get_index(k);
+        let data = &mut self._data[index];
+        // println!("index:{}, k:{:?}", index, k);
+        // println!("index:{}, k:{:?}, data:{:?}", index, k, data);
+        match data {
+            Some(d) => {
+                let head = d.next_mut();
+                //若head不存在设为None
+                let mut res = None;
+                //若head存在且head的key与之相等
+                if let Some(h) = head {
+                    if h.get_mut().0 == *k {
+                        return Some(&mut h.get_mut().1);
+                    }
+                    //否则进行head持续next直到为none
+                    let mut cur = h.next_mut();
+                    while let Some(v) = cur {
+                        if v.get_value().0 == *k {
+                            res = Some(&mut v.get_mut().1);
+                            break;
+                        }
+                        cur = v.next_mut();
+                    }
+                }
+                res
+            }
+            None => None,
+        }
+    }
+    pub fn get(&self, k: &K) -> Option<&V> {
         let index = self._get_index(k);
         let data = &self._data[index];
         // println!("index:{}, k:{:?}", index, k);
@@ -96,25 +126,23 @@ impl<K: Hash + Eq + Clone, V: Clone> MyHashMap<K, V> {
         match data {
             Some(d) => {
                 let head = d.next();
-                //若head不存在
-                if head.is_none() {
-                    return None;
-                }
-                //若head存在且head的key与之相等
-                let h = head.unwrap();
-                let tmp = h.get_value().clone();
-                if tmp.0 == *k {
-                    return Some(tmp.1);
-                }
-                //否则进行head持续next直到为none
-                let mut cur = h.next();
+                //若head不存在设为None
                 let mut res = None;
-                while let Some(v) = cur {
-                    if v.get_value().0 == *k {
-                        res = Some(v.get_value().1);
-                        break;
+                //若head存在且head的key与之相等
+                if let Some(h) = head {
+                    let tmp = h.get_value();
+                    if tmp.0 == *k {
+                        return Some(&tmp.1);
                     }
-                    cur = v.next();
+                    //否则进行head持续next直到为none
+                    let mut cur = h.next();
+                    while let Some(v) = cur {
+                        if v.get_value().0 == *k {
+                            res = Some(&v.get_value().1);
+                            break;
+                        }
+                        cur = v.next();
+                    }
                 }
                 res
             }
@@ -155,15 +183,18 @@ impl<K: Hash + Eq + Clone, V: Clone> MyHashMap<K, V> {
     }
 }
 
-// impl<K: Hash + Eq + Clone, V: Clone> Index<&K> for MyHashMap<K, V> {
-//     type Output = V;
+impl<K: Hash + Eq + Clone, V: Clone> Index<&K> for MyHashMap<K, V> {
+    type Output = V;
 
-//     fn index(&self, index: &K) -> &Self::Output {
-//         let opt_v = self.get(index);
-//         let v_ref = opt_v.as_ref();
-//         v_ref.expect("out of range")
-//     }
-// }
+    fn index(&self, index: &K) -> &Self::Output {
+        self.get(index).expect(OUT_OF_RANGE)
+    }
+}
+impl<K: Hash + Eq + Clone, V: Clone> IndexMut<&K> for MyHashMap<K, V> {
+    fn index_mut(&mut self, index: &K) -> &mut Self::Output {
+        self.get_mut(index).expect(OUT_OF_RANGE)
+    }
+}
 #[test]
 fn test() {
     let mut hm = MyHashMap::<i32, i32>::new();

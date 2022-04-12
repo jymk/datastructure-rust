@@ -18,7 +18,7 @@ impl<T: Clone> Stack<T> {
         self._data.delete_head();
     }
     //查看栈顶
-    pub fn peek(&self) -> Option<T> {
+    pub fn peek(&self) -> Option<&T> {
         self._data.get(0)
     }
     //清空栈

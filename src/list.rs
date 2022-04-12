@@ -1,4 +1,8 @@
-use std::{fmt::Debug, ops::Deref};
+use crate::errs::OUT_OF_RANGE;
+use std::{
+    fmt::Debug,
+    ops::{Deref, DerefMut, Index, IndexMut},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct List<T> {
@@ -14,17 +18,14 @@ pub struct Node<T> {
     _next: InnerNode<T>,
 }
 impl<T: Clone> Node<T> {
-    pub fn get_value(&self) -> T {
-        self._val.clone()
+    pub fn get_value(&self) -> &T {
+        &self._val
     }
 
     //下一个节点
-    pub fn next(&self) -> Option<Self> {
+    pub fn next(&self) -> Option<&Self> {
         match &self._next {
-            Some(v) => {
-                let tmp = v.deref().clone();
-                Some(tmp)
-            }
+            Some(v) => Some(&*v),
             None => None,
         }
     }
@@ -74,15 +75,31 @@ impl<T: Clone> List<T> {
         }
         res
     }
+    //获取index下标处可变值
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        let mut i = 0;
+        let head = &mut self._head;
+        let mut cur = head.as_mut();
+        let mut res = None;
+        while let Some(x) = cur {
+            if i == index {
+                res = Some(&mut x._val);
+                break;
+            }
+            cur = x._next.as_mut();
+            i += 1;
+        }
+        res
+    }
     //获取index下标处不可变值
-    pub fn get(&self, index: usize) -> Option<T> {
+    pub fn get(&self, index: usize) -> Option<&T> {
         let mut i = 0;
         let head = &self._head;
         let mut cur = head.as_ref();
         let mut res = None;
         while let Some(x) = cur {
             if i == index {
-                res = Some(x._val.clone());
+                res = Some(&x._val);
                 break;
             }
             cur = x._next.as_ref();
@@ -208,12 +225,9 @@ impl<T: Clone> List<T> {
     }
 
     //头节点
-    pub fn next(&self) -> Option<Node<T>> {
+    pub fn next(&self) -> Option<&Node<T>> {
         match &self._head {
-            Some(v) => {
-                let tmp = v.deref().clone();
-                Some(tmp)
-            }
+            Some(v) => Some(&v.deref()),
             None => None,
         }
     }
@@ -243,18 +257,39 @@ impl<T: Clone> List<T> {
         self._head = cur;
     }
 }
+impl<T: Clone> Index<usize> for List<T> {
+    type Output = T;
 
-//暂时没用
-impl<T: Clone> Iterator for Node<T> {
-    type Item = Box<Node<T>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match &self._next {
-            Some(v) => Some(v.clone()),
-            None => None,
-        }
+    fn index(&self, index: usize) -> &Self::Output {
+        self.get(index).expect(OUT_OF_RANGE)
     }
 }
+
+impl<T: Clone> IndexMut<usize> for List<T> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.get_mut(index).expect(OUT_OF_RANGE)
+    }
+}
+
+//暂时没用
+// impl<'a, T: Clone> Iterator for Node<&'a T> {
+//     type Item = &'a mut Node<&'a T>;
+
+//     fn next(&'a mut self) -> Option<Self::Item> {
+//         match self._next.as_mut() {
+//             Some(v) => Some(v.deref_mut()),
+//             None => None,
+//         }
+//     }
+// }
+
+// impl<T: Clone> IntoIterator for Node<T> {
+//     type Item = T;
+//     type IntoIter = std::vec::IntoIter<T>;
+//     fn into_iter(self) -> Self::IntoIter {
+//         self._next.unwrap()._val
+//     }
+// }
 
 impl<T: Clone> Default for List<T> {
     fn default() -> Self {
