@@ -50,12 +50,6 @@ impl<T: Clone> List<T> {
             _len: usize::default(),
         }
     }
-    pub fn new_with_head(head: &InnerNode<T>) -> Self {
-        List {
-            _head: head.clone(),
-            _len: usize::default(),
-        }
-    }
     //new并在尾部增加一个值
     pub fn new_with_val(val: T) -> Self {
         let mut tmp = Self::new();
@@ -69,8 +63,7 @@ impl<T: Clone> List<T> {
     //获取index下标处可变节点
     pub fn get_node_mut(&mut self, index: usize) -> Option<&mut Node<T>> {
         let mut i = 0;
-        let head = &mut self._head;
-        let mut cur = head.as_mut();
+        let mut cur = self._head.as_mut();
         let mut res = None;
         while let Some(x) = cur {
             if i == index {
@@ -85,8 +78,7 @@ impl<T: Clone> List<T> {
     //获取index下标处可变值
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         let mut i = 0;
-        let head = &mut self._head;
-        let mut cur = head.as_mut();
+        let mut cur = self._head.as_mut();
         let mut res = None;
         while let Some(x) = cur {
             if i == index {
@@ -101,8 +93,7 @@ impl<T: Clone> List<T> {
     //获取index下标处不可变值
     pub fn get(&self, index: usize) -> Option<&T> {
         let mut i = 0;
-        let head = &self._head;
-        let mut cur = head.as_ref();
+        let mut cur = self._head.as_ref();
         let mut res = None;
         while let Some(x) = cur {
             if i == index {
@@ -137,8 +128,7 @@ impl<T: Clone> List<T> {
             self._len += 1;
             return;
         }
-        let head = &mut self._head;
-        let mut cur = head.as_mut();
+        let mut cur = self._head.as_mut();
         let mut i = 0;
         while let Some(x) = cur {
             if i == len - 1 {
@@ -168,8 +158,7 @@ impl<T: Clone> List<T> {
             self._len += 1;
             return;
         }
-        let head = &mut self._head;
-        let mut cur = head.as_mut();
+        let mut cur = self._head.as_mut();
         //下标为0
         if index == 0 {
             self.add_at_head(val);
@@ -201,8 +190,7 @@ impl<T: Clone> List<T> {
     //删下标
     pub fn delete_at_index(&mut self, index: usize) {
         let len = self._len;
-        let head = &mut self._head;
-        let mut cur = head.as_mut();
+        let mut cur = self._head.as_mut();
         //下标为0
         if len > 0 && index == 0 {
             self.delete_head();
