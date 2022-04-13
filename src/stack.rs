@@ -1,5 +1,6 @@
 use crate::list::List;
 
+//栈
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Stack<T> {
     _data: List<T>,

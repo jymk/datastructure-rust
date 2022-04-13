@@ -1,24 +1,27 @@
 use crate::errs::OUT_OF_RANGE;
 use std::{
+    cell::RefCell,
     fmt::Debug,
     ops::{Deref, DerefMut, Index, IndexMut},
+    rc::Rc,
 };
 
-/// 链表
+/// 双向链表
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct List<T> {
+pub struct DList<T> {
     _head: InnerNode<T>,
     _len: usize,
 }
 
-type InnerNode<T> = Option<Box<Node<T>>>;
+type InnerNode<T> = Option<Rc<RefCell<DNode<T>>>>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Node<T> {
+pub struct DNode<T> {
     _val: T,
     _next: InnerNode<T>,
+    _prev: InnerNode<T>,
 }
-impl<T: Clone> Node<T> {
+impl<T: Clone> DNode<T> {
     pub fn get_value(&self) -> &T {
         &self._val
     }
@@ -26,14 +29,14 @@ impl<T: Clone> Node<T> {
     //下一个节点
     pub fn next(&self) -> Option<&Self> {
         match &self._next {
-            Some(v) => Some(&*v),
+            Some(v) => Some(v.borrow().deref()),
             None => None,
         }
     }
     //下一个可变节点
     pub fn next_mut(&mut self) -> Option<&mut Self> {
         match self._next.as_mut() {
-            Some(v) => Some(v.as_mut()),
+            Some(v) => Some(v.borrow_mut().deref_mut()),
             None => None,
         }
     }
@@ -43,15 +46,15 @@ impl<T: Clone> Node<T> {
     }
 }
 
-impl<T: Clone> List<T> {
+impl<T: Clone> DList<T> {
     pub fn new() -> Self {
-        List {
+        DList {
             _head: None,
             _len: usize::default(),
         }
     }
     pub fn new_with_head(head: &InnerNode<T>) -> Self {
-        List {
+        DList {
             _head: head.clone(),
             _len: usize::default(),
         }
@@ -67,17 +70,17 @@ impl<T: Clone> List<T> {
         self.add_at_tail(val);
     }
     //获取index下标处可变节点
-    pub fn get_node_mut(&mut self, index: usize) -> Option<&mut Node<T>> {
+    pub fn get_node_mut(&mut self, index: usize) -> Option<&mut DNode<T>> {
         let mut i = 0;
         let head = &mut self._head;
         let mut cur = head.as_mut();
         let mut res = None;
         while let Some(x) = cur {
             if i == index {
-                res = Some(x.as_mut());
+                res = Some(x.borrow_mut().deref_mut());
                 break;
             }
-            cur = x._next.as_mut();
+            cur = x.borrow_mut()._next.as_mut();
             i += 1;
         }
         res
@@ -90,10 +93,10 @@ impl<T: Clone> List<T> {
         let mut res = None;
         while let Some(x) = cur {
             if i == index {
-                res = Some(&mut x._val);
+                res = Some(&mut x.borrow_mut()._val);
                 break;
             }
-            cur = x._next.as_mut();
+            cur = x.borrow_mut()._next.as_mut();
             i += 1;
         }
         res
@@ -106,10 +109,10 @@ impl<T: Clone> List<T> {
         let mut res = None;
         while let Some(x) = cur {
             if i == index {
-                res = Some(&x._val);
+                res = Some(&x.borrow()._val);
                 break;
             }
-            cur = x._next.as_ref();
+            cur = x.borrow()._next.as_ref();
             i += 1;
         }
         res
@@ -117,10 +120,11 @@ impl<T: Clone> List<T> {
 
     //头插
     pub fn add_at_head(&mut self, val: T) {
-        let new_node = Box::new(Node {
+        let new_node = Rc::new(RefCell::new(DNode {
             _val: val,
             _next: self._head.take(),
-        });
+            _prev: None,
+        }));
         self._head = Some(new_node);
         self._len += 1;
     }
@@ -128,10 +132,11 @@ impl<T: Clone> List<T> {
     //尾插
     pub fn add_at_tail(&mut self, val: T) {
         let len = self._len;
-        let mut new_node = Some(Box::new(Node {
+        let mut new_node = Some(Rc::new(RefCell::new(DNode {
             _val: val,
             _next: None,
-        }));
+            _prev: None,
+        })));
         if len == 0 {
             self._head = new_node;
             self._len += 1;
@@ -142,11 +147,11 @@ impl<T: Clone> List<T> {
         let mut i = 0;
         while let Some(x) = cur {
             if i == len - 1 {
-                x.as_mut()._next = new_node;
+                x.borrow_mut()._next = new_node;
                 self._len += 1;
                 break;
             }
-            cur = x._next.as_mut();
+            cur = x.borrow_mut()._next.as_mut();
             i += 1;
         }
     }
@@ -158,10 +163,11 @@ impl<T: Clone> List<T> {
             // panic!("out of range");
             return;
         }
-        let mut new_node = Some(Box::new(Node {
+        let mut new_node = Some(Rc::new(RefCell::new(DNode {
             _val: val.clone(),
             _next: None,
-        }));
+            _prev: None,
+        })));
         //长度为0
         if len == 0 {
             self._head = new_node;
@@ -180,13 +186,13 @@ impl<T: Clone> List<T> {
             if i == index - 1 {
                 let tmp = new_node.as_mut();
                 if let Some(n) = tmp {
-                    n.as_mut()._next = x._next.clone();
+                    n.borrow_mut()._next = x.borrow()._next.clone();
                 }
-                x.as_mut()._next = new_node;
+                x.borrow_mut()._next = new_node;
                 self._len += 1;
                 break;
             }
-            cur = x._next.as_mut();
+            cur = x.borrow_mut()._next.as_mut();
             i += 1;
         }
     }
@@ -194,7 +200,7 @@ impl<T: Clone> List<T> {
     //删头
     pub fn delete_head(&mut self) {
         if let Some(x) = self._head.as_mut() {
-            self._head = x._next.clone();
+            self._head = x.borrow()._next.clone();
             self._len -= 1;
         }
     }
@@ -211,17 +217,17 @@ impl<T: Clone> List<T> {
         let mut i = 0;
         while let Some(x) = cur {
             if i == index - 1 {
-                let mid = x._next.as_mut();
+                let mid = x.borrow_mut()._next.as_mut();
                 if let Some(m) = mid {
-                    let mut right = m._next.as_mut();
+                    let mut right = m.borrow_mut()._next.as_mut();
                     if let Some(r) = right {
-                        x.as_mut()._next = Some(r.clone());
+                        x.borrow_mut()._next = Some(r.clone());
                         self._len -= 1;
                     }
                 }
                 break;
             }
-            cur = x._next.as_mut();
+            cur = x.borrow_mut()._next.as_mut();
             i += 1;
         }
     }
@@ -232,16 +238,16 @@ impl<T: Clone> List<T> {
     }
 
     //头节点
-    pub fn next(&self) -> Option<&Node<T>> {
+    pub fn next(&self) -> Option<&DNode<T>> {
         match &self._head {
-            Some(v) => Some(&v.deref()),
+            Some(v) => Some(&v.borrow().deref()),
             None => None,
         }
     }
     //可变头节点
-    pub fn next_mut(&mut self) -> Option<&mut Node<T>> {
+    pub fn next_mut(&mut self) -> Option<&mut DNode<T>> {
         match self._head.as_mut() {
-            Some(v) => Some(v.as_mut()),
+            Some(v) => Some(v.borrow_mut().deref_mut()),
             None => None,
         }
     }
@@ -250,97 +256,18 @@ impl<T: Clone> List<T> {
         self._head = None;
         self._len = 0;
     }
-    //反转
-    pub fn reverse(&mut self) {
-        let mut node = &self._head;
-        let mut cur = None;
-        while let Some(x) = node.as_ref() {
-            cur = Some(Box::new(Node {
-                _val: x._val.clone(),
-                _next: cur,
-            }));
-            node = &x._next;
-        }
-        self._head = cur;
-    }
-}
-impl<T: Clone> Index<usize> for List<T> {
-    type Output = T;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        self.get(index).expect(OUT_OF_RANGE)
-    }
 }
 
-impl<T: Clone> IndexMut<usize> for List<T> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        self.get_mut(index).expect(OUT_OF_RANGE)
+fn deref_rc_rfcell_mut<T>(data: &mut Rc<RefCell<DNode<T>>>) -> Option<&mut DNode<T>> {
+    let mut tmp = data.try_borrow_mut().as_mut();
+    // let a = tmp.deref_mut();
+    if let Ok(v) = tmp {
+        Some(v.deref_mut())
+    } else {
+        None
     }
-}
-
-//只能从下标1开始
-impl<'a, T> Iterator for &'a Node<T> {
-    type Item = &'a Node<T>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self._next.as_ref() {
-            Some(v) => {
-                *self = v.deref();
-                Some(v.deref())
-            }
-            None => None,
-        }
-    }
-}
-// impl<'a, T: Clone> Iterator for &'a mut List<T> {
-//     type Item = &'a mut Node<T>;
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         match self._head.as_ref() {
-//             Some(v) => {
-//                 **self = List::new_with_head(&v._next);
-//                 Some(v.deref_mut())
-//             }
-//             None => None,
-//         }
-//     }
-// }
-
-// impl<'a, T> IntoIterator for &'a Node<T> {
-//     type Item = &'a T;
-//     type IntoIter = &'a Node<T>;
-//     fn into_iter(self) -> Self::IntoIter {
-//         self._next.unwrap().deref()
-//     }
-// }
-
-impl<T: Clone> Default for List<T> {
-    fn default() -> Self {
-        Self::new()
-    }
+    // tmp.deref_mut()
 }
 
 #[test]
-fn test() {
-    let mut list = List::<i32>::new();
-    // println!("len:{}, list:{:?}", list._len, list);
-    list.add(0);
-    list.add(1);
-    list.add(2);
-    list.add(3);
-    list.add(4);
-    list.add(5);
-    let cur = list._head.as_ref();
-    if let Some(x) = cur {
-        for l in x.deref() {
-            println!("val:{}", l.get_value());
-        }
-    }
-    println!("len:{}, list:{:?}", list._len, list);
-    // list.reverse();
-    // println!("len:{}, list:{:?}", list._len, list);
-
-    // let a = Rc::new(5);
-    // let b = a.clone();
-    // println!("a:{:p}, b:{:p}", a, b);
-}
+fn test() {}
