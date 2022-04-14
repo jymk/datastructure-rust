@@ -77,18 +77,11 @@ impl<T: Clone> List<T> {
     }
     //获取index下标处可变值
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        let mut i = 0;
-        let mut cur = self._head.as_mut();
-        let mut res = None;
-        while let Some(x) = cur {
-            if i == index {
-                res = Some(&mut x._val);
-                break;
-            }
-            cur = x._next.as_mut();
-            i += 1;
+        if let Some(x) = self.get_node_mut(index) {
+            Some(&mut x._val)
+        } else {
+            None
         }
-        res
     }
     //获取index下标处不可变值
     pub fn get(&self, index: usize) -> Option<&T> {
@@ -128,16 +121,9 @@ impl<T: Clone> List<T> {
             self._len += 1;
             return;
         }
-        let mut cur = self._head.as_mut();
-        let mut i = 0;
-        while let Some(x) = cur {
-            if i == len - 1 {
-                x.as_mut()._next = new_node;
-                self._len += 1;
-                break;
-            }
-            cur = x._next.as_mut();
-            i += 1;
+        if let Some(x) = self.get_node_mut(len - 1) {
+            x._next = new_node;
+            self._len += 1;
         }
     }
 
@@ -145,38 +131,24 @@ impl<T: Clone> List<T> {
     pub fn add_at_index(&mut self, index: usize, val: T) {
         let len = self._len;
         if index > len {
-            // panic!("out of range");
+            return;
+        }
+        //下标为0 或 长度为0
+        if len == 0 || index == 0 {
+            self.add_at_head(val.clone());
             return;
         }
         let mut new_node = Some(Box::new(Node {
-            _val: val.clone(),
+            _val: val,
             _next: None,
         }));
-        //长度为0
-        if len == 0 {
-            self._head = new_node;
-            self._len += 1;
-            return;
-        }
-        let mut cur = self._head.as_mut();
-        //下标为0
-        if index == 0 {
-            self.add_at_head(val);
-            return;
-        }
-        let mut i = 0;
-        while let Some(x) = cur {
-            if i == index - 1 {
-                let tmp = new_node.as_mut();
-                if let Some(n) = tmp {
-                    n.as_mut()._next = x._next.clone();
-                }
-                x.as_mut()._next = new_node;
-                self._len += 1;
-                break;
+        if let Some(x) = self.get_node_mut(index - 1) {
+            let tmp = new_node.as_mut();
+            if let Some(n) = tmp {
+                n.as_mut()._next = x._next.clone();
             }
-            cur = x._next.as_mut();
-            i += 1;
+            x._next = new_node;
+            self._len += 1;
         }
     }
 
@@ -312,19 +284,25 @@ impl<T: Clone> Default for List<T> {
 fn test() {
     let mut list = List::<i32>::new();
     // println!("len:{}, list:{:?}", list._len, list);
-    list.add(0);
-    list.add(1);
-    list.add(2);
-    list.add(3);
-    list.add(4);
-    list.add(5);
-    let cur = list._head.as_ref();
-    if let Some(x) = cur {
-        for l in x.deref() {
-            println!("val:{}", l.get_value());
-        }
-    }
-    println!("len:{}, list:{:?}", list._len, list);
+    list.add_at_index(0, 9);
+    list.add_at_index(0, 7);
+    list.add_at_index(2, 8);
+    // list.add(0);
+    // list.add(6);
+    // list.add_at_tail(7);
+    // list.add(2);
+    // list.add(3);
+    // list.add(4);
+    // list.add(5);
+    // let len = list._len;
+    println!("len:{}, list:{:?}", list.len(), list);
+    // let cur = list._head.as_ref();
+    // if let Some(x) = cur {
+    //     for l in x.deref() {
+    //         println!("val:{}", l.get_value());
+    //     }
+    // }
+    // println!("len:{}, list:{:?}", list._len, list.get_mut(2));
     // list.reverse();
     // println!("len:{}, list:{:?}", list._len, list);
 
