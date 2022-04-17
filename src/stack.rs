@@ -8,15 +8,15 @@ pub struct Stack<T> {
 
 impl<T: Clone> Stack<T> {
     pub fn new() -> Self {
-        Stack {
+        Self {
             _data: List::<T>::default(),
         }
     }
     pub fn push(&mut self, val: T) {
         self._data.add_at_head(val);
     }
-    pub fn pop(&mut self) {
-        self._data.delete_head();
+    pub fn pop(&mut self) -> Option<T> {
+        self._data.delete_head()
     }
     //查看栈顶
     pub fn peek(&self) -> Option<&T> {

@@ -111,20 +111,7 @@ impl<T: Clone> List<T> {
 
     //尾插
     pub fn add_at_tail(&mut self, val: T) {
-        let len = self._len;
-        let mut new_node = Some(Box::new(Node {
-            _val: val,
-            _next: None,
-        }));
-        if len == 0 {
-            self._head = new_node;
-            self._len += 1;
-            return;
-        }
-        if let Some(x) = self.get_node_mut(len - 1) {
-            x._next = new_node;
-            self._len += 1;
-        }
+        self.add_at_index(self._len, val)
     }
 
     //下标插
@@ -138,52 +125,57 @@ impl<T: Clone> List<T> {
             self.add_at_head(val.clone());
             return;
         }
-        let mut new_node = Some(Box::new(Node {
+        let mut new_node = Box::new(Node {
             _val: val,
             _next: None,
-        }));
+        });
         if let Some(x) = self.get_node_mut(index - 1) {
-            let tmp = new_node.as_mut();
-            if let Some(n) = tmp {
-                n.as_mut()._next = x._next.clone();
-            }
-            x._next = new_node;
+            new_node._next = x._next.clone();
+            x._next = Some(new_node);
             self._len += 1;
         }
     }
 
     //删头
-    pub fn delete_head(&mut self) {
+    pub fn delete_head(&mut self) -> Option<T> {
         if let Some(x) = self._head.as_mut() {
+            let del_val = x._val.clone();
             self._head = x._next.clone();
             self._len -= 1;
+            return Some(del_val);
+        } else {
+            None
         }
     }
     //删下标
-    pub fn delete_at_index(&mut self, index: usize) {
+    pub fn delete_at_index(&mut self, index: usize) -> Option<T> {
+        //下标为0
+        if index == 0 {
+            return self.delete_head();
+        }
         let len = self._len;
         let mut cur = self._head.as_mut();
-        //下标为0
-        if len > 0 && index == 0 {
-            self.delete_head();
-            return;
-        }
         let mut i = 0;
-        while let Some(x) = cur {
+        while let Some(left) = cur {
             if i == index - 1 {
-                let mid = x._next.as_mut();
+                let mid = left._next.as_mut();
                 if let Some(m) = mid {
+                    let m_val = m._val.clone();
                     let mut right = m._next.as_mut();
                     if let Some(r) = right {
-                        x.as_mut()._next = Some(r.clone());
-                        self._len -= 1;
+                        left.as_mut()._next = Some(r.clone());
+                    } else {
+                        left._next = None;
                     }
+                    self._len -= 1;
+                    return Some(m_val);
                 }
                 break;
             }
-            cur = x._next.as_mut();
+            cur = left._next.as_mut();
             i += 1;
         }
+        None
     }
 
     //长度
@@ -289,12 +281,14 @@ fn test() {
     list.add_at_index(2, 8);
     // list.add(0);
     // list.add(6);
-    // list.add_at_tail(7);
+    list.add_at_tail(6);
+    list.add_at_index(4, 10);
     // list.add(2);
     // list.add(3);
     // list.add(4);
     // list.add(5);
     // let len = list._len;
+    list.delete_at_index(10);
     println!("len:{}, list:{:?}", list.len(), list);
     // let cur = list._head.as_ref();
     // if let Some(x) = cur {

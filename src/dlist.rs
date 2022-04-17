@@ -1,8 +1,6 @@
-use crate::errs::OUT_OF_RANGE;
 use std::{
     cell::RefCell,
     fmt::{Debug, Display},
-    ops::{Deref, DerefMut, Index, IndexMut},
     rc::Rc,
 };
 
@@ -47,7 +45,7 @@ impl<T: Clone> DNode<T> {
     }
 }
 
-impl<T: Clone + Debug> DList<T> {
+impl<T: Clone> DList<T> {
     pub fn new() -> Self {
         DList {
             _head: None,
@@ -55,33 +53,43 @@ impl<T: Clone + Debug> DList<T> {
         }
     }
     //new并在尾部增加一个值
-    // pub fn new_with_val(val: T) -> Self {
-    //     let mut tmp = Self::new();
-    //     tmp.add(val);
-    //     tmp
-    // }
+    pub fn new_with_val(val: T) -> Self {
+        let mut tmp = Self::new();
+        tmp.add(val);
+        tmp
+    }
     //在尾部增加一个值
-    // pub fn add(&mut self, val: T) {
-    //     self.add_at_tail(val);
-    // }
+    pub fn add(&mut self, val: T) {
+        self.add_at_tail(val);
+    }
+
+    //这里不好改成循环，参考https://blog.csdn.net/weixin_51560951/article/details/122310256
+    fn _get_index_node(
+        &self,
+        node: Rc<RefCell<DNode<T>>>,
+        cur: usize,
+        index: usize,
+    ) -> Option<Rc<RefCell<DNode<T>>>> {
+        // println!("node:{:?}, cur:{}, index:{}", node.clone(), cur, index);
+        if cur >= index {
+            return Some(node);
+        }
+        if let Some(n) = &node.borrow_mut()._next {
+            let a = self._get_index_node(n.clone(), cur + 1, index);
+            return a.clone();
+        }
+        return None;
+    }
+
     //获取index下标处节点
     pub fn get_node(&self, index: usize) -> Option<Rc<RefCell<DNode<T>>>> {
-        let mut i = 0;
-        let mut head = self._head.as_ref();
-        let mut res = None;
-        if let Some(h) = head {
-            let mut cur = Some(h);
-            while let Some(x) = &h.borrow_mut()._next {
-                if i == index {
-                    res = Some(x.clone());
-                    break;
-                }
-                cur = x.borrow_mut()._next.as_ref();
-                i += 1;
-            }
+        if let Some(h) = self._head.as_ref() {
+            // println!("h:{:?}, index:{}", h.clone(), index);
+            return self._get_index_node(h.clone(), 0, index);
         }
-        res
+        None
     }
+
     // 获取index下标处不可变值
     pub fn get(&self, index: usize) -> Option<T> {
         if let Some(x) = &self.get_node(index) {
@@ -109,94 +117,78 @@ impl<T: Clone + Debug> DList<T> {
 
     //尾插
     pub fn add_at_tail(&mut self, val: T) {
+        self.add_at_index(self._len, val);
+    }
+
+    //下标插
+    pub fn add_at_index(&mut self, index: usize, val: T) {
         let len = self._len;
-        let mut new_node = DNode::new(val.clone());
-        if len == 0 {
-            self.add_at_head(val);
+        if index > len {
             return;
         }
-        let mod_node = self.get_node(len - 1);
-        if let Some(x) = mod_node {
+        if index == 0 || len == 0 {
+            self.add_at_head(val.clone());
+            return;
+        }
+        let mut new_node = DNode::new(val);
+        let mod_prev_node = self.get_node(index - 1);
+        // println!("mod_node:{:?}", mod_prev_node);
+        if let Some(x) = mod_prev_node {
+            //新节点赋值
+            new_node._next = x.borrow()._next.clone();
             new_node._prev = Some(x.clone());
             let rc = Rc::new(RefCell::new(new_node));
+            //右节点的prev赋值为新节点
+            if let Some(y) = &x.borrow_mut()._next {
+                y.borrow_mut()._prev = Some(rc.clone());
+            }
+            //左节点的next赋值为新节点
             x.borrow_mut()._next = Some(rc.clone());
             self._len += 1;
         }
     }
 
-    // //下标插
-    // pub fn add_at_index(&mut self, index: usize, val: T) {
-    //     let len = self._len;
-    //     if index > len {
-    //         // panic!("out of range");
-    //         return;
-    //     }
-    //     let mut new_node = Some(Rc::new(RefCell::new(DNode {
-    //         _val: val.clone(),
-    //         _next: None,
-    //         _prev: None,
-    //     })));
-    //     //长度为0
-    //     if len == 0 {
-    //         self._head = new_node;
-    //         self._len += 1;
-    //         return;
-    //     }
-    //     let mut cur = self._head.as_ref();
-    //     //下标为0
-    //     if index == 0 {
-    //         self.add_at_head(val);
-    //         return;
-    //     }
-    //     let mut i = 0;
-    //     while let Some(x) = cur {
-    //         if i == index - 1 {
-    //             let tmp = new_node.as_ref();
-    //             if let Some(n) = tmp {
-    //                 n.borrow_mut()._next = x.borrow()._next.clone();
-    //             }
-    //             x.borrow_mut()._next = new_node;
-    //             self._len += 1;
-    //             break;
-    //         }
-    //         cur = x.borrow().next();
-    //         i += 1;
-    //     }
-    // }
-
-    // //删头
-    // pub fn delete_head(&mut self) {
-    //     if let Some(x) = self._head.as_mut() {
-    //         self._head = x.borrow()._next.clone();
-    //         self._len -= 1;
-    //     }
-    // }
+    //删头
+    pub fn delete_head(&mut self) -> Option<T> {
+        if let Some(ref mut h) = self._head {
+            let h_val = h.borrow()._val.clone();
+            let head = h.borrow_mut()._next.take();
+            if let Some(x) = &head {
+                x.borrow_mut()._prev = None;
+            }
+            self._head = head;
+            self._len -= 1;
+            return Some(h_val);
+        } else {
+            None
+        }
+    }
     // //删下标
-    // pub fn delete_at_index(&mut self, index: usize) {
-    //     let len = self._len;
-    //     let mut cur = self._head.as_ref();
-    //     //下标为0
-    //     if len > 0 && index == 0 {
-    //         self.delete_head();
-    //         return;
-    //     }
-    //     let mut i = 0;
-    //     while let Some(x) = cur {
-    //         if i == index - 1 {
-    //             let mid = x.borrow()._next.as_ref();
-    //             if let Some(m) = mid {
-    //                 let mut right = m.borrow()._next.as_ref();
-    //                 if let Some(r) = right {
-    //                     x.borrow_mut()._next = Some(r.clone());
-    //                     self._len -= 1;
-    //                 }
-    //             }
-    //             break;
-    //         }
-    //         cur = x.borrow().next();
-    //         i += 1;
-    //     }
-    // }
+    pub fn delete_at_index(&mut self, index: usize) -> Option<T> {
+        //下标为0
+        if index == 0 {
+            return self.delete_head();
+        }
+        if let Some(l) = self.get_node(index - 1) {
+            let mid_node = l.borrow_mut()._next.take();
+            if let Some(m) = &mid_node {
+                let mid_val = m.borrow()._val.clone();
+                let right_node = m.borrow_mut()._next.take();
+                if let Some(r) = &right_node {
+                    //设置右节点的prev为左节点
+                    r.borrow_mut()._prev = Some(l.clone());
+                    //设置左节点的next为右节点
+                    l.borrow_mut()._next = Some(r.clone());
+                } else {
+                    //设置左节点的next为None
+                    l.borrow_mut()._next = None;
+                }
+                self._len -= 1;
+                return Some(mid_val);
+            }
+        }
+        None
+    }
 
     //长度
     pub fn len(&self) -> usize {
@@ -217,7 +209,13 @@ impl<T: Clone + Debug> DList<T> {
     }
 }
 
-/// 不实现DNode的打印方法，打印会循环引用而爆栈
+impl<T: Clone> Default for DList<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// 不实现DNode的打印方法，会使得打印循环引用而爆栈
 impl<T: Debug> Display for DList<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Debug::fmt(&self._head, f)
@@ -246,10 +244,24 @@ impl<T: Debug> Debug for DNode<T> {
 #[test]
 fn test() {
     let mut dl = DList::<i32>::new();
+    //11 -> 10 -> 9 -> 4 -> 3
     dl.add_at_head(3);
     dl.add_at_head(4);
+    dl.add_at_head(9);
+    dl.add_at_head(10);
+    dl.add_at_head(11);
     dl.add_at_tail(5);
     dl.add_at_tail(7);
     dl.add_at_tail(6);
-    println!("dl:{}", dl);
+    dl.add_at_index(0, 1);
+    dl.add_at_index(2, 2);
+    dl.add_at_index(dl._len, 8);
+    println!("dl:{}, len:{}", dl, dl.len());
+    dl.delete_at_index(3);
+    println!("dl:{}, len:{}", dl, dl.len());
+    dl.delete_at_index(0);
+    println!("dl:{}, len:{}", dl, dl.len());
+    dl.delete_at_index(dl.len() - 3);
+    println!("dl:{}, len:{}", dl, dl.len());
+    // println!("dl:{}", dl);
 }
