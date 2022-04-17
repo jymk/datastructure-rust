@@ -228,7 +228,7 @@ impl<T: Display> Display for DNode<T> {
         if let Some(node) = &self._next {
             return std::fmt::Display::fmt(&node.borrow(), f);
         }
-        write!(f, "")
+        write!(f, "None")
     }
 }
 impl<T: Debug> Debug for DNode<T> {
@@ -237,7 +237,7 @@ impl<T: Debug> Debug for DNode<T> {
         if let Some(node) = &self._next {
             return Debug::fmt(&node.borrow(), f);
         }
-        write!(f, "")
+        write!(f, "None")
     }
 }
 

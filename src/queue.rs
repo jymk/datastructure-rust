@@ -1,5 +1,6 @@
 use crate::dlist::DList;
 
+//队列
 struct Queue<T> {
     _data: DList<T>,
 }
