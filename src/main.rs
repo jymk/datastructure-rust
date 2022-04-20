@@ -1,5 +1,7 @@
 #![allow(unused)]
 
+mod binary_tree;
+mod bst;
 mod dlist;
 mod errs;
 mod hm;

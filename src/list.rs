@@ -18,7 +18,7 @@ pub struct Node<T> {
     _val: T,
     _next: InnerNode<T>,
 }
-impl<T: Clone> Node<T> {
+impl<T> Node<T> {
     pub fn get_value(&self) -> &T {
         &self._val
     }
@@ -43,22 +43,12 @@ impl<T: Clone> Node<T> {
     }
 }
 
-impl<T: Clone> List<T> {
-    pub fn new() -> Self {
-        List {
-            _head: None,
-            _len: usize::default(),
-        }
-    }
-    //new并在尾部增加一个值
-    pub fn new_with_val(val: T) -> Self {
-        let mut tmp = Self::new();
-        tmp.add(val);
+impl<T> List<T> {
+    //初始化并增加一个值
+    pub fn new(val: T) -> Self {
+        let mut tmp = Self::default();
+        tmp.add_at_head(val);
         tmp
-    }
-    //在尾部增加一个值
-    pub fn add(&mut self, val: T) {
-        self.add_at_tail(val);
     }
     //获取index下标处可变节点
     pub fn get_node_mut(&mut self, index: usize) -> Option<&mut Node<T>> {
@@ -108,12 +98,41 @@ impl<T: Clone> List<T> {
         self._head = Some(new_node);
         self._len += 1;
     }
+    //长度
+    pub fn len(&self) -> usize {
+        self._len
+    }
 
+    //头节点
+    pub fn next(&self) -> Option<&Node<T>> {
+        match &self._head {
+            Some(v) => Some(&v.deref()),
+            None => None,
+        }
+    }
+    //可变头节点
+    pub fn next_mut(&mut self) -> Option<&mut Node<T>> {
+        match self._head.as_mut() {
+            Some(v) => Some(v.as_mut()),
+            None => None,
+        }
+    }
+    //清空
+    pub fn clear(&mut self) {
+        self._head = None;
+        self._len = 0;
+    }
+}
+
+impl<T: Clone> List<T> {
+    //在尾部增加一个值
+    pub fn add(&mut self, val: T) {
+        self.add_at_tail(val);
+    }
     //尾插
     pub fn add_at_tail(&mut self, val: T) {
         self.add_at_index(self._len, val)
     }
-
     //下标插
     pub fn add_at_index(&mut self, index: usize, val: T) {
         let len = self._len;
@@ -178,30 +197,6 @@ impl<T: Clone> List<T> {
         None
     }
 
-    //长度
-    pub fn len(&self) -> usize {
-        self._len
-    }
-
-    //头节点
-    pub fn next(&self) -> Option<&Node<T>> {
-        match &self._head {
-            Some(v) => Some(&v.deref()),
-            None => None,
-        }
-    }
-    //可变头节点
-    pub fn next_mut(&mut self) -> Option<&mut Node<T>> {
-        match self._head.as_mut() {
-            Some(v) => Some(v.as_mut()),
-            None => None,
-        }
-    }
-    //清空
-    pub fn clear(&mut self) {
-        self._head = None;
-        self._len = 0;
-    }
     //反转
     pub fn reverse(&mut self) {
         let mut node = &self._head;
@@ -216,7 +211,8 @@ impl<T: Clone> List<T> {
         self._head = cur;
     }
 }
-impl<T: Clone> Index<usize> for List<T> {
+
+impl<T> Index<usize> for List<T> {
     type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -224,7 +220,7 @@ impl<T: Clone> Index<usize> for List<T> {
     }
 }
 
-impl<T: Clone> IndexMut<usize> for List<T> {
+impl<T> IndexMut<usize> for List<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         self.get_mut(index).expect(OUT_OF_RANGE)
     }
@@ -266,15 +262,18 @@ impl<'a, T> Iterator for &'a Node<T> {
 //     }
 // }
 
-impl<T: Clone> Default for List<T> {
+impl<T> Default for List<T> {
     fn default() -> Self {
-        Self::new()
+        List {
+            _head: None,
+            _len: usize::default(),
+        }
     }
 }
 
 #[test]
 fn test() {
-    let mut list = List::<i32>::new();
+    let mut list = List::<i32>::default();
     // println!("len:{}, list:{:?}", list._len, list);
     list.add_at_index(0, 9);
     list.add_at_index(0, 7);

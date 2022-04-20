@@ -5,12 +5,22 @@ struct Queue<T> {
     _data: DList<T>,
 }
 
-impl<T: Clone> Queue<T> {
-    pub fn new() -> Self {
+impl<T> Queue<T> {
+    pub fn new(val: T) -> Self {
         Self {
-            _data: DList::default(),
+            _data: DList::new(val),
         }
     }
+    //计数
+    pub fn count(&self) -> usize {
+        self._data.len()
+    }
+    //是否为空
+    pub fn empty(&self) -> bool {
+        self._data.len() == 0
+    }
+}
+impl<T: Clone> Queue<T> {
     //入队
     pub fn enqueue(&mut self, val: T) {
         self._data.add_at_tail(val);
@@ -23,18 +33,12 @@ impl<T: Clone> Queue<T> {
     pub fn peek(&self) -> Option<T> {
         self._data.get(0)
     }
-    //计数
-    pub fn count(&self) -> usize {
-        self._data.len()
-    }
-    //是否为空
-    pub fn empty(&self) -> bool {
-        self._data.len() == 0
-    }
 }
 
-impl<T: Clone> Default for Queue<T> {
+impl<T> Default for Queue<T> {
     fn default() -> Self {
-        Self::new()
+        Self {
+            _data: DList::default(),
+        }
     }
 }

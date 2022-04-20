@@ -82,7 +82,7 @@ impl<K: Hash + Eq + Clone, V: Clone> MyHashMap<K, V> {
                     *self = new_data;
                 }
                 //插入
-                let mut node = List::<(K, V)>::new_with_val((k.clone(), v));
+                let mut node = List::<(K, V)>::new((k.clone(), v));
                 self._data[index] = Some(node);
                 self._len += 1;
             }
@@ -180,6 +180,16 @@ impl<K: Hash + Eq + Clone, V: Clone> MyHashMap<K, V> {
         self._len = 0;
         self._cap = 0;
         self._data.clear();
+    }
+}
+
+impl<K, V> Default for MyHashMap<K, V> {
+    fn default() -> Self {
+        Self {
+            _data: Vec::default(),
+            _len: usize::default(),
+            _cap: usize::default(),
+        }
     }
 }
 
