@@ -2,6 +2,7 @@
 
 mod binary_tree;
 mod bst;
+mod common;
 mod dlist;
 mod errs;
 mod hm;
