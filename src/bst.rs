@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 use crate::common::pos::Pos;
 
@@ -33,18 +33,12 @@ impl<T> BSTNode<T> {
             None => None,
         }
     }
-    //获取子节点
-    pub fn get_children(&self) {}
-    //枚举(包括该结点的所有子孙)
-    pub fn enumerate(&self) {}
-    //插入node到self的pos位置
-    pub fn insert(&mut self, node: &Self, pos: Pos) {}
     //嫁接node到self的pos位置
     pub fn graft(&mut self, node: &Self, pos: Pos) {}
 }
 
-impl<T: PartialEq + Eq> BSTNode<T> {
-    //修剪当前节点
+impl<T: PartialEq> BSTNode<T> {
+    //修剪掉当前节点
     pub fn prune(&self) {
         //获取父节点，对比父节点的左和右节点，哪个相等就删除哪个
         match &self._parent {
@@ -65,52 +59,49 @@ impl<T: PartialEq + Eq> BSTNode<T> {
     }
 }
 
-impl<T: Clone + PartialEq + Eq> BSTNode<T> {
-    //删除，删除后取pos位置为子节点
-    pub fn delete(&mut self, pos: Pos) {
-        //获取父节点，对比父节点的左和右节点，哪个相等就删除哪个，并赋予父节点的_left或_right为其pos节点
-        //上述无法实现，若被删除节点左右节点都有值，另一个节点重排序到新_left或_right
-        match &self._parent {
-            Some(p) => {
-                let p_clone = p.clone();
-                //若左边为空，说明右边肯定不为空
-                if let Some(l) = &mut p.borrow_mut()._left {
-                    //若左边不等，说明右边也不为空
-                    if *self == **l {
-                        match pos {
-                            Pos::Left => {
-                                p_clone.borrow_mut()._left = l._left.clone();
-                                if let Some(ll) = &mut l._left {
-                                    ll._parent = Some(p_clone);
-                                    // ll._right = l._right.clone();
-                                }
-                            }
-                            Pos::Right => {
-                                p_clone.borrow_mut()._left = l._right.clone();
-                                if let Some(lr) = &mut l._right {
-                                    lr._parent = Some(p_clone);
-                                    // lr._left = l._left.clone();
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    if let Some(r) = &mut p.borrow_mut()._right {
-                        match pos {
-                            Pos::Left => {
-                                p_clone.borrow_mut()._right = r._left.clone();
-                            }
-                            Pos::Right => {}
-                        }
-                    }
-                }
-            }
-            None => return,
+impl<T: Clone + Ord> BSTNode<T> {
+    fn _insert_node(&mut self, node: Self) {
+        match node._val.cmp(&self._val) {
+            std::cmp::Ordering::Equal => return,
+            std::cmp::Ordering::Less => match self._left.as_mut() {
+                Some(x) => x._insert_node(node),
+                None => self._left = Some(Box::new(node)),
+            },
+            std::cmp::Ordering::Greater => match self._right.as_mut() {
+                Some(x) => x._insert_node(node),
+                None => self._right = Some(Box::new(node)),
+            },
         }
     }
 }
-
+impl<T: Debug> BSTNode<T> {
+    //枚举(包括该结点的所有子孙)
+    pub fn enumerate(&self) {
+        print!("{:?} => ", self._val);
+        if let Some(v) = &self._left {
+            v.enumerate();
+        }
+        if let Some(v) = &self._right {
+            v.enumerate();
+        }
+    }
+}
 impl<T: Clone> BSTNode<T> {
+    fn _get_children(&self, res: &mut Vec<Self>) {
+        if let Some(v) = &self._left {
+            v._get_children(res);
+        }
+        if let Some(v) = &self._right {
+            v._get_children(res);
+        }
+        res.push((*self).clone());
+    }
+    //获取子节点
+    pub fn get_children(&self) -> Vec<Self> {
+        let mut res = vec![];
+        self._get_children(&mut res);
+        res
+    }
     //获取父节点
     pub fn get_parent(&self) -> Option<Self> {
         match &self._parent {
@@ -164,6 +155,51 @@ impl<T> BST<T> {
         }
     }
 }
+impl<T: Debug> BST<T> {
+    pub fn enumerate(&self) {
+        if let Some(x) = &self._root {
+            x.enumerate();
+        }
+        println!("None");
+    }
+}
+impl<T: Clone + Ord> BST<T> {
+    //插入node到self的pos位置
+    pub fn insert(&mut self, val: T) {
+        let node = BSTNode::new(val);
+        if let Some(x) = self._root.as_mut() {
+            x._insert_node(node);
+        } else {
+            self._root = Some(Box::new(node));
+        }
+    }
+    //删除
+    pub fn delete(&mut self, val: &T) {
+        let mut datas = self.pre_order();
+        //排序方便找到合适的根节点
+        datas.sort();
+        //新根节点数据
+        let len = datas.len();
+        let r_data = datas[len / 2].clone();
+        //删除val元素和根节点数据(即保留不等于val并且不等于r_data的)
+        datas.retain(|x| x != val && x != &r_data);
+        //若没有此元素
+        if datas.len() == len {
+            return;
+        }
+        let mut new_tree = Self::new(r_data);
+        for data in datas {
+            new_tree.insert(data);
+        }
+        //使用新生成的树复制给self(相当于重排序)
+        *self = new_tree;
+    }
+}
+impl<T: PartialEq> BST<T> {
+    pub fn prune(&mut self) {
+        // self._root
+    }
+}
 impl<T: Clone> BST<T> {
     //先序遍历
     pub fn pre_order(&self) -> Vec<T> {
@@ -195,4 +231,16 @@ impl<T> Default for BST<T> {
     fn default() -> Self {
         Self { _root: None }
     }
+}
+
+#[test]
+fn test() {
+    let mut bst = BST::new(10);
+    bst.insert(1);
+    bst.insert(12);
+    bst.insert(11);
+    bst.delete(&9);
+    bst.enumerate();
+    // let datas = bst.post_order();
+    // println!("datas: {:?}", datas);
 }
