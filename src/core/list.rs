@@ -1,4 +1,4 @@
-use crate::errs::OUT_OF_RANGE;
+use crate::common::errs::OUT_OF_RANGE;
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut, Index, IndexMut},

@@ -1,4 +1,4 @@
-use crate::list::List;
+use crate::core::list::List;
 
 //栈
 #[derive(Debug, Clone, PartialEq, Eq)]

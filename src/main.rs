@@ -1,14 +1,7 @@
 #![allow(unused)]
 
-mod binary_tree;
-mod bst;
 mod common;
-mod dlist;
-mod errs;
-mod hm;
-mod list;
-mod queue;
-mod stack;
+mod core;
 
 fn main() {
     println!("Hello, world!");

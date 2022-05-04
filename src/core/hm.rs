@@ -1,5 +1,5 @@
 // use std::ops::Index;
-use crate::{errs::OUT_OF_RANGE, list::List};
+use crate::{common::errs::OUT_OF_RANGE, core::list::List};
 use std::{
     collections::hash_map::DefaultHasher,
     fmt::Debug,

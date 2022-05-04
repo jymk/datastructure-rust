@@ -1,6 +1,10 @@
-use std::{cell::RefCell, fmt::Debug, rc::Rc};
+use std::{
+    cell::RefCell,
+    fmt::{Debug, Display},
+    rc::Rc,
+};
 
-use crate::common::pos::Pos;
+use crate::common::node::{BoxEntity, BoxNode};
 
 //二叉搜索树
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -10,7 +14,7 @@ struct BST<T> {
 
 type InnerBSTNode<T> = Option<Box<BSTNode<T>>>;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct BSTNode<T> {
     _left: InnerBSTNode<T>,
     _right: InnerBSTNode<T>,
@@ -27,14 +31,20 @@ impl<T> BSTNode<T> {
             _val: Some(val),
         }
     }
+    pub fn new_opt(opt_val: Option<T>) -> Self {
+        Self {
+            _left: None,
+            _right: None,
+            _parent: None,
+            _val: opt_val,
+        }
+    }
     pub fn get_val(&self) -> Option<&T> {
         match &self._val {
             Some(v) => Some(v),
             None => None,
         }
     }
-    //嫁接node到self的pos位置
-    pub fn graft(&mut self, node: &Self, pos: Pos) {}
 }
 
 impl<T: PartialEq> BSTNode<T> {
@@ -60,16 +70,29 @@ impl<T: PartialEq> BSTNode<T> {
 }
 
 impl<T: Clone + Ord> BSTNode<T> {
-    fn _insert_node(&mut self, node: Self) {
+    //嫁接node
+    pub fn graft(&mut self, node: Self) {
+        let children = node.get_children();
+        for child in children {
+            self._insert_node(child);
+        }
+    }
+    fn _insert_node(&mut self, mut node: Self) {
         match node._val.cmp(&self._val) {
             std::cmp::Ordering::Equal => return,
             std::cmp::Ordering::Less => match self._left.as_mut() {
                 Some(x) => x._insert_node(node),
-                None => self._left = Some(Box::new(node)),
+                None => {
+                    node._parent = Some(Rc::new(RefCell::new(self.clone())));
+                    self._left = Some(Box::new(node));
+                }
             },
             std::cmp::Ordering::Greater => match self._right.as_mut() {
                 Some(x) => x._insert_node(node),
-                None => self._right = Some(Box::new(node)),
+                None => {
+                    node._parent = Some(Rc::new(RefCell::new(self.clone())));
+                    self._right = Some(Box::new(node));
+                }
             },
         }
     }
@@ -94,7 +117,7 @@ impl<T: Clone> BSTNode<T> {
         if let Some(v) = &self._right {
             v._get_children(res);
         }
-        res.push((*self).clone());
+        res.push(BSTNode::new_opt(self._val.clone()));
     }
     //获取子节点
     pub fn get_children(&self) -> Vec<Self> {
@@ -164,7 +187,13 @@ impl<T: Debug> BST<T> {
     }
 }
 impl<T: Clone + Ord> BST<T> {
-    //插入node到self的pos位置
+    //嫁接
+    pub fn graft(&mut self, node: BSTNode<T>) {
+        if let Some(x) = self._root.as_mut() {
+            x.graft(node);
+        }
+    }
+    //插入数据
     pub fn insert(&mut self, val: T) {
         let node = BSTNode::new(val);
         if let Some(x) = self._root.as_mut() {
@@ -227,6 +256,81 @@ impl<T: Clone> BST<T> {
     }
 }
 
+impl<T: Ord> BoxNode for BSTNode<T> {
+    type T = T;
+    type U = Self;
+
+    fn get_node(&self, t: &Option<Self::T>) -> Option<&Self::U> {
+        match t.cmp(&self._val) {
+            std::cmp::Ordering::Equal => Some(&self),
+            std::cmp::Ordering::Less => {
+                if let Some(x) = &self._left {
+                    x.get_node(t)
+                } else {
+                    None
+                }
+            }
+            std::cmp::Ordering::Greater => {
+                if let Some(x) = &self._right {
+                    x.get_node(t)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+impl<T: Ord + Clone> BoxEntity for BST<T> {
+    type T = T;
+    type U = BSTNode<T>;
+
+    fn get_node(&self, t: &Self::T) -> Option<&Self::U> {
+        if let Some(x) = &self._root {
+            x.get_node(&Some(t.clone()))
+        } else {
+            None
+        }
+    }
+}
+
+//只打印parent
+impl<T: Debug> Debug for BSTNode<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?} => ", self._val)?;
+        if let Some(x) = &self._parent {
+            return Debug::fmt(&x.borrow(), f);
+        }
+        write!(f, "None")
+    }
+}
+//打印子节点
+impl<T: Debug> Display for BSTNode<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?} => ", self._val)?;
+        //打印父节点，需注释下面
+        // if let Some(x) = &self._parent {
+        //     return Display::fmt(&x.borrow(), f);
+        // }
+        //打印左右节点，需注释上面
+        if let Some(x) = &self._left {
+            Display::fmt(x.as_ref(), f);
+        }
+        if let Some(x) = &self._right {
+            Display::fmt(&x, f);
+        }
+        write!(f, "")
+    }
+}
+
+impl<T: Debug> Display for BST<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(x) = &self._root {
+            Display::fmt(x.as_ref(), f);
+        }
+        write!(f, "None")
+    }
+}
+
 impl<T> Default for BST<T> {
     fn default() -> Self {
         Self { _root: None }
@@ -238,9 +342,12 @@ fn test() {
     let mut bst = BST::new(10);
     bst.insert(1);
     bst.insert(12);
+    bst.insert(13);
     bst.insert(11);
-    bst.delete(&9);
-    bst.enumerate();
+    let node = bst.get_node(&13);
+    // println!("node:{:#?}", node);
+    // bst.enumerate();
+    println!("node:{}", bst);
     // let datas = bst.post_order();
     // println!("datas: {:?}", datas);
 }
