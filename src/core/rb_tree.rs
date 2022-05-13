@@ -161,20 +161,23 @@ impl<T> RBNode<T> {
 }
 impl<T: Clone + Ord> RBNode<T> {
     pub fn insert(&mut self, val: T) {
+        let mut new_node = Rc::new(RefCell::new(RBNode::new_red(val.clone())));
         if let Some(x) = self._val.as_ref() {
             match val.cmp(&x) {
                 std::cmp::Ordering::Less => {
                     if let Some(y) = &self._right {
                         y.borrow_mut().insert(val);
                     } else {
-                        self._right = Some(Rc::new(RefCell::new(RBNode::new_red(val))));
+                        new_node.borrow_mut()._parent = self._parent.clone();
+                        self._right = Some(new_node);
                     }
                 }
                 std::cmp::Ordering::Greater => {
                     if let Some(y) = &self._left {
                         y.borrow_mut().insert(val);
                     } else {
-                        self._left = Some(Rc::new(RefCell::new(RBNode::new_red(val))));
+                        new_node.borrow_mut()._parent = self._parent.clone();
+                        self._left = Some(new_node);
                     }
                 }
                 std::cmp::Ordering::Equal => return,
@@ -304,5 +307,5 @@ fn test() {
     rbt.insert(12);
     rbt.insert(9);
     rbt.insert(10);
-    println!("rbt={:?}", rbt);
+    println!("rbt={:?}, check:{}", rbt, rbt._check());
 }
