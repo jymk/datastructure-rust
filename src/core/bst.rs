@@ -256,12 +256,11 @@ impl<T: Clone> BST<T> {
     }
 }
 
-impl<T: Ord> BoxNode for BSTNode<T> {
-    type T = T;
+impl<T: Ord> BoxNode<T> for BSTNode<T> {
     type U = Self;
 
-    fn get_node(&self, t: &Option<Self::T>) -> Option<&Self::U> {
-        match t.cmp(&self._val) {
+    fn get_node(&self, t: &Option<&T>) -> Option<&Self::U> {
+        match t.cmp(&self._val.as_ref()) {
             std::cmp::Ordering::Equal => Some(&self),
             std::cmp::Ordering::Less => {
                 if let Some(x) = &self._left {
@@ -280,13 +279,12 @@ impl<T: Ord> BoxNode for BSTNode<T> {
         }
     }
 }
-impl<T: Ord + Clone> BoxEntity for BST<T> {
-    type T = T;
+impl<T: Ord> BoxEntity<T> for BST<T> {
     type U = BSTNode<T>;
 
-    fn get_node(&self, t: &Self::T) -> Option<&Self::U> {
+    fn get_node(&self, t: &T) -> Option<&Self::U> {
         if let Some(x) = &self._root {
-            x.get_node(&Some(t.clone()))
+            x.get_node(&Some(t))
         } else {
             None
         }

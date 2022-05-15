@@ -1,4 +1,11 @@
-use std::{cell::RefCell, fmt::Debug, ops::DerefMut, rc::Rc};
+use std::{
+    cell::RefCell,
+    fmt::Debug,
+    ops::{DerefMut, Not},
+    rc::Rc,
+};
+
+use crate::common::node::{BoxEntity, BoxNode, RcRefEntity, RcRefNode};
 
 //每个节点是红的或者黑的
 //根节点是黑的
@@ -53,13 +60,19 @@ impl<T> RBTree<T> {
     }
 }
 
-impl<T: Clone + Ord> RBTree<T> {
+impl<T: Clone + Ord + RcRefEntity<T>> RBTree<T> {
     pub fn insert(&mut self, val: T) {
         if let Some(x) = self._root.as_mut() {
-            x.borrow_mut().insert(val);
+            x.borrow_mut().insert(val.clone());
         } else {
-            self._root = Some(Rc::new(RefCell::new(RBNode::new_black(val))));
+            self._root = Some(Rc::new(RefCell::new(RBNode::new_black(val.clone()))));
         }
+        //检查满足性质直接返回
+        if self._check() {
+            return;
+        }
+        //不满足进行旋转变色
+        // self._rotate_right(&mut self.get_node(&val));
     }
     pub fn delete(&mut self, val: &T) {
         if let Some(x) = self._root.as_mut() {
@@ -126,6 +139,7 @@ impl<T> RBNode<T> {
         if self._color == Color::Red && child._color == Color::Red {
             return false;
         }
+        //性质5
         if child._color == Color::Black {
             *count += 1;
         }
@@ -165,19 +179,19 @@ impl<T: Clone + Ord> RBNode<T> {
         if let Some(x) = self._val.as_ref() {
             match val.cmp(&x) {
                 std::cmp::Ordering::Less => {
-                    if let Some(y) = &self._right {
-                        y.borrow_mut().insert(val);
-                    } else {
-                        new_node.borrow_mut()._parent = self._parent.clone();
-                        self._right = Some(new_node);
-                    }
-                }
-                std::cmp::Ordering::Greater => {
                     if let Some(y) = &self._left {
                         y.borrow_mut().insert(val);
                     } else {
                         new_node.borrow_mut()._parent = self._parent.clone();
                         self._left = Some(new_node);
+                    }
+                }
+                std::cmp::Ordering::Greater => {
+                    if let Some(y) = &self._right {
+                        y.borrow_mut().insert(val);
+                    } else {
+                        new_node.borrow_mut()._parent = self._parent.clone();
+                        self._right = Some(new_node);
                     }
                 }
                 std::cmp::Ordering::Equal => return,
@@ -254,6 +268,51 @@ impl<T: Clone> RBNode<T> {
     }
 }
 
+impl<T: Ord + Clone> RcRefEntity<T> for RBTree<T> {
+    type U = RBNode<T>;
+
+    fn get_node(&self, t: &T) -> Option<Rc<RefCell<Self::U>>> {
+        if let Some(x) = &self._root {
+            return x.borrow().get_node(&Some(t));
+        }
+        None
+    }
+}
+
+impl<T: Ord + Clone> RcRefNode<T> for RBNode<T> {
+    type U = Self;
+
+    fn get_node(&self, t: &Option<&T>) -> Option<Rc<RefCell<Self::U>>> {
+        match t.cmp(&self._val.as_ref()) {
+            std::cmp::Ordering::Equal => {
+                // if let Some(x) = &self._parent {
+                //     let tmp = Some(Rc::new(RefCell::new(self.clone())));
+                //     if x.borrow()._left == tmp {
+                //         return x.borrow()._left.clone();
+                //     } else {
+                //         return None;
+                //     }
+                // }
+                Some(Rc::new(RefCell::new((*self).clone())))
+            }
+            std::cmp::Ordering::Less => {
+                if let Some(x) = &self._left {
+                    x.borrow().get_node(t)
+                } else {
+                    None
+                }
+            }
+            std::cmp::Ordering::Greater => {
+                if let Some(x) = &self._right {
+                    x.borrow().get_node(t)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
 impl<T> Default for RBTree<T> {
     fn default() -> Self {
         Self { _root: None }
@@ -275,6 +334,17 @@ impl<T> Default for RBNode<T> {
 impl Default for Color {
     fn default() -> Self {
         Self::Black
+    }
+}
+
+impl Not for Color {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        match self {
+            Color::Black => Color::Red,
+            Color::Red => Color::Black,
+        }
     }
 }
 
@@ -307,5 +377,5 @@ fn test() {
     rbt.insert(12);
     rbt.insert(9);
     rbt.insert(10);
-    println!("rbt={:?}, check:{}", rbt, rbt._check());
+    println!("rbt={:?}, check:{:?}", rbt, rbt.get_node(&9));
 }
