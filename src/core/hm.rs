@@ -1,4 +1,3 @@
-// use std::ops::Index;
 use crate::{common::errs::OUT_OF_RANGE, core::list::List};
 use std::{
     collections::hash_map::DefaultHasher,
@@ -82,12 +81,13 @@ impl<K: Hash + Eq + Clone, V: Clone> MyHashMap<K, V> {
                     *self = new_data;
                 }
                 //插入
-                let mut node = List::<(K, V)>::new((k.clone(), v));
+                let node = List::<(K, V)>::new((k.clone(), v));
                 self._data[index] = Some(node);
                 self._len += 1;
             }
         }
     }
+
     pub fn get_mut(&mut self, k: &K) -> Option<&mut V> {
         let index = self._get_index(k);
         let data = &mut self._data[index];
@@ -118,6 +118,7 @@ impl<K: Hash + Eq + Clone, V: Clone> MyHashMap<K, V> {
             None => None,
         }
     }
+
     pub fn get(&self, k: &K) -> Option<&V> {
         let index = self._get_index(k);
         let data = &self._data[index];
@@ -159,8 +160,7 @@ impl<K: Hash + Eq + Clone, V: Clone> MyHashMap<K, V> {
                 let mut head = v.next_mut();
                 while let Some(h) = head {
                     if h.get_value().0 == *k {
-                        let mut left = v.get_node_mut(i - 1);
-                        if let Some(l) = left {
+                        if let Some(l) = v.get_node_mut(i - 1) {
                             if let Some(m) = l.next_mut() {
                                 if let Some(r) = m.next_mut() {
                                     *m = r.clone();
