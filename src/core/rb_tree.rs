@@ -53,26 +53,9 @@ impl<T> RBTree<T> {
 
 impl<T: Clone + Ord + PartialEq + Debug> RBTree<T> {
     pub fn insert(&mut self, val: T) {
-        let node = if let Some(x) = &self._root {
-            x.borrow_mut().insert(val.clone())
-        } else {
-            self._root = Some(Rc::new(RefCell::new(RBNode::new_black(val.clone()))));
-            None
-        };
-        if let Some((x, y)) = &node {
-            let mut cur = x.clone();
-            // loop {
-            //检查满足性质直接返回
-            if self._check() {
-                return;
-            }
-            if let Some(z) = &self._root {
-                cur.borrow_mut()._operate(&mut z.borrow_mut(), *y);
-            }
-            //     let cur_clone = cur.borrow()._parent.clone();
-            //     cur = cur_clone.unwrap();
-            // }
-        }
+        println!("\nval={:?}", val);
+        let node = _insert(&mut self._root, val);
+        _fix_after_insert(node, &self._root);
     }
 
     pub fn delete(&mut self, val: &T) {
@@ -99,20 +82,20 @@ impl<T: Clone + Debug> RBTree<T> {
 }
 
 impl<T> RBNode<T> {
-    pub fn new(val: T, color: Color) -> Self {
+    pub fn new(val: T, color: Color, parent: Option<Rc<RefCell<RBNode<T>>>>) -> Self {
         Self {
             _left: None,
             _right: None,
-            _parent: None,
+            _parent: parent,
             _val: Some(val),
             _color: color,
         }
     }
     pub fn new_red(val: T) -> Self {
-        Self::new(val, Color::Red)
+        Self::new(val, Color::Red, None)
     }
     pub fn new_black(val: T) -> Self {
-        Self::new(val, Color::Black)
+        Self::new(val, Color::Black, None)
     }
     //统计最左侧链的黑色总数
     fn _count(&self, count: &mut usize) {
@@ -157,42 +140,8 @@ impl<T> RBNode<T> {
         //子不需要变，因为本来就是红
     }
 }
+
 impl<T: Clone + Ord + Debug> RBNode<T> {
-    pub fn insert(&mut self, val: T) -> Option<(Rc<RefCell<RBNode<T>>>, Pos)> {
-        let mut new_node = RBNode::new_red(val.clone());
-        if let Some(x) = self._val.as_ref() {
-            match val.cmp(&x) {
-                std::cmp::Ordering::Less => {
-                    if let Some(y) = &self._left {
-                        y.borrow_mut().insert(val)
-                    } else {
-                        let parent = Rc::new(RefCell::new(self.clone()));
-                        new_node._parent = Some(parent.clone());
-                        let rc = Rc::new(RefCell::new(new_node));
-                        parent.borrow_mut()._left = Some(rc.clone());
-                        // println!("parent")
-                        Some((rc, Pos::Left))
-                    }
-                }
-                std::cmp::Ordering::Greater => {
-                    if let Some(y) = &self._right {
-                        y.borrow_mut().insert(val)
-                    } else {
-                        let parent = Rc::new(RefCell::new(self.clone()));
-                        new_node._parent = Some(parent.clone());
-                        let rc = Rc::new(RefCell::new(new_node));
-                        parent.borrow_mut()._right = Some(rc.clone());
-                        Some((rc, Pos::Right))
-                    }
-                }
-                std::cmp::Ordering::Equal => None,
-            }
-        } else {
-            //理论上没有值但有节点这种情况不会发生
-            self._val = Some(val);
-            None
-        }
-    }
     pub fn delete(&mut self, val: &T) {
         if let Some(x) = self._val.as_ref() {
             match val.cmp(x) {
@@ -240,6 +189,149 @@ fn _check<T: Clone>(pnode: &Option<Rc<RefCell<RBNode<T>>>>, count: usize, mut tm
     _check(&node._left, count, tmp) && _check(&node._right, count, tmp)
 }
 
+fn _get_node<T: Ord + Debug>(
+    mut node: &Option<Rc<RefCell<RBNode<T>>>>,
+    val: &Option<T>,
+) -> Option<Rc<RefCell<RBNode<T>>>> {
+    if node.is_none() {
+        return None;
+    }
+    let mut node = node.clone();
+    while node.is_some() {
+        let tmp = node.clone().unwrap();
+        let tmp = tmp.borrow();
+        match tmp._val.cmp(val) {
+            std::cmp::Ordering::Equal => {
+                return node.clone();
+            }
+            std::cmp::Ordering::Less => {
+                node = tmp._right.clone();
+            }
+            std::cmp::Ordering::Greater => {
+                node = tmp._left.clone();
+            }
+        }
+    }
+    return None;
+}
+
+pub fn _insert<T: Ord + Clone>(
+    this: &mut Option<Rc<RefCell<RBNode<T>>>>,
+    val: T,
+) -> Option<Rc<RefCell<RBNode<T>>>> {
+    if this.is_none() {
+        let root = Rc::new(RefCell::new(RBNode::new_black(val.clone())));
+        *this = Some(root.clone());
+        return Some(root);
+    }
+    let mut this = this.clone();
+    while this.is_some() {
+        let tmp = this.unwrap();
+        let mut tb = tmp.borrow_mut();
+        match tb._val.cmp(&Some(val.clone())) {
+            std::cmp::Ordering::Less => {
+                if tb._right.is_some() {
+                    this = tb._right.clone();
+                } else {
+                    //self->right 设为new_node
+                    let rc = Rc::new(RefCell::new(RBNode::new_red(val)));
+                    tb._right = Some(rc.clone());
+                    //new_node->parent设为self
+                    rc.borrow_mut()._parent = Some(tmp.clone());
+                    return Some(rc.clone());
+                }
+            }
+            std::cmp::Ordering::Greater => {
+                if tb._left.is_some() {
+                    this = tb._left.clone();
+                } else {
+                    //self->left 设为new_node
+                    let rc = Rc::new(RefCell::new(RBNode::new_red(val)));
+                    tb._left = Some(rc.clone());
+                    //new_node->parent设为self
+                    rc.borrow_mut()._parent = Some(tmp.clone());
+                    return Some(rc.clone());
+                }
+            }
+            std::cmp::Ordering::Equal => break,
+        }
+    }
+    None
+}
+
+/// 插入后处理旋转变色
+fn _fix_after_insert<T: PartialEq + Debug>(
+    mut this: Option<Rc<RefCell<RBNode<T>>>>,
+    root: &Option<Rc<RefCell<RBNode<T>>>>,
+) {
+    while this.is_some() && this != *root {
+        let x = this.clone().unwrap();
+        let p = x.borrow()._parent.clone().unwrap();
+        if p.borrow()._color == Color::Black {
+            break;
+        }
+        let grandparent = p.borrow()._parent.clone();
+        let uncle;
+        let pos = if let Some(gp) = &grandparent {
+            if gp.borrow()._left == Some(p.clone()) {
+                uncle = gp.borrow()._right.clone();
+                Pos::Left
+            } else {
+                uncle = gp.borrow()._left.clone();
+                Pos::Right
+            }
+        } else {
+            uncle = None;
+            Pos::Right
+        };
+        println!("uncle={:?}", uncle);
+        if let Some(u) = uncle {
+            let mut ub = u.borrow_mut();
+            match ub._color {
+                Color::Red => {
+                    p.borrow_mut()._color = Color::Black;
+                    ub._color = Color::Black;
+                    if let Some(gp) = &grandparent {
+                        gp.borrow_mut()._color = Color::Red;
+                    }
+                    this = grandparent.clone();
+                }
+                Color::Black => {
+                    match pos {
+                        Pos::Left => {
+                            if this == p.borrow()._right {
+                                this = Some(p.clone());
+                                //左旋this
+                            }
+                            p.borrow_mut()._color = Color::Black;
+                            if let Some(gp) = &grandparent {
+                                gp.borrow_mut()._color = Color::Red;
+                                //右旋gp
+                            }
+                        }
+                        Pos::Right => {
+                            if this == p.borrow()._left {
+                                this = Some(p.clone());
+                                //右旋this
+                            }
+                            p.borrow_mut()._color = Color::Black;
+                            if let Some(gp) = &grandparent {
+                                gp.borrow_mut()._color = Color::Red;
+                                //左旋gp
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            break;
+        }
+    }
+    if let Some(r) = root.as_ref() {
+        r.borrow_mut()._color = Color::Black;
+    }
+}
+
 impl<T: Clone + PartialEq + Debug> RBNode<T> {
     //执行旋转或变色
     //pos: 当前为左子树就传left，右子树就传right
@@ -271,17 +363,16 @@ impl<T: Clone + PartialEq + Debug> RBNode<T> {
             if p.borrow()._color == Color::Black {
                 return;
             }
-            println!("parent={:?}", p.borrow());
+            // println!("parent={:?}", p);
             if let Some(gp) = &p.borrow()._parent {
-                println!("gp={:?}", gp.borrow());
                 let gpb = gp.borrow();
-                println!(
-                    "gpb: _left={:?}, _right={:?}, val={:?}, color={:?}",
-                    gpb._left,
-                    gpb._right,
-                    p.borrow()._val,
-                    p.borrow()._color
-                );
+                // println!(
+                //     "gpb: _left={:?}, _right={:?}, val={:?}, color={:?}",
+                //     gpb._left,
+                //     gpb._right,
+                //     p.borrow()._val,
+                //     p.borrow()._color
+                // );
                 let pc = Some(p.clone());
                 if gpb._right == pc {
                     println!("is right");
@@ -341,11 +432,15 @@ impl<T: Clone + PartialEq + Debug> RBNode<T> {
             }
         }
         if gp.is_some() {
-            let gpu = gp.unwrap();
-            if gpu.borrow()._left == Some(this.clone()) {
-                gpu.borrow_mut()._left = r.clone();
+            let gpu = gp.clone().unwrap();
+            let pos = if gpu.borrow()._left == Some(this.clone()) {
+                Pos::Left
             } else {
-                gpu.borrow_mut()._right = r.clone();
+                Pos::Right
+            };
+            match pos {
+                Pos::Left => gpu.borrow_mut()._left = r.clone(),
+                Pos::Right => gpu.borrow_mut()._right = r.clone(),
             }
         }
     }
