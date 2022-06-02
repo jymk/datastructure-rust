@@ -53,15 +53,13 @@ impl<T> RBTree<T> {
 
 impl<T: Clone + Ord + PartialEq + Debug> RBTree<T> {
     pub fn insert(&mut self, val: T) {
-        println!("\nval={:?}", val);
+        // println!("\nval={:?}", val);
         let node = _insert(&mut self._root, val);
-        _fix_after_insert(node, &self._root);
+        _fix_after_insert(node, &mut self._root);
     }
 
     pub fn delete(&mut self, val: &T) {
-        if let Some(x) = self._root.as_mut() {
-            x.borrow_mut().delete(val);
-        }
+        _delete(&mut self._root, val);
     }
 }
 
@@ -141,33 +139,6 @@ impl<T> RBNode<T> {
     }
 }
 
-impl<T: Clone + Ord + Debug> RBNode<T> {
-    pub fn delete(&mut self, val: &T) {
-        if let Some(x) = self._val.as_ref() {
-            match val.cmp(x) {
-                std::cmp::Ordering::Equal => {
-                    if let Some(c) = &self._left {
-                        c.borrow_mut()._parent = self._parent.clone();
-                    }
-                    if let Some(p) = &self._parent {
-                        p.borrow_mut()._left = self._left.clone();
-                    }
-                }
-                std::cmp::Ordering::Less => {
-                    if let Some(y) = &self._left {
-                        y.borrow_mut().delete(val);
-                    }
-                }
-                std::cmp::Ordering::Greater => {
-                    if let Some(y) = &self._right {
-                        y.borrow_mut().delete(val);
-                    }
-                }
-            }
-        }
-    }
-}
-
 fn _check<T: Clone>(pnode: &Option<Rc<RefCell<RBNode<T>>>>, count: usize, mut tmp: usize) -> bool {
     if pnode.is_none() {
         return true;
@@ -190,29 +161,131 @@ fn _check<T: Clone>(pnode: &Option<Rc<RefCell<RBNode<T>>>>, count: usize, mut tm
 }
 
 fn _get_node<T: Ord + Debug>(
-    mut node: &Option<Rc<RefCell<RBNode<T>>>>,
+    node: &Option<Rc<RefCell<RBNode<T>>>>,
     val: &Option<T>,
 ) -> Option<Rc<RefCell<RBNode<T>>>> {
     if node.is_none() {
         return None;
     }
-    let mut node = node.clone();
-    while node.is_some() {
-        let tmp = node.clone().unwrap();
+    let mut cur = node.clone();
+    while cur.is_some() {
+        let tmp = cur.clone().unwrap();
         let tmp = tmp.borrow();
         match tmp._val.cmp(val) {
             std::cmp::Ordering::Equal => {
-                return node.clone();
+                return cur.clone();
             }
             std::cmp::Ordering::Less => {
-                node = tmp._right.clone();
+                cur = tmp._right.clone();
             }
             std::cmp::Ordering::Greater => {
-                node = tmp._left.clone();
+                cur = tmp._left.clone();
             }
         }
     }
     return None;
+}
+
+/// 参考java
+/// 此处对我的难点是当去掉一个中间的节点之后，是用它的左节点还是右节点作为新的中间节点呢
+fn _delete<T: Ord + Clone + PartialEq + Debug>(root: &mut RBInnerNode<T>, val: &T) {
+    if root.is_none() {
+        return;
+    }
+
+    let mut node = _get_node(&root, &Some(val.clone()));
+    if node.is_none() {
+        return;
+    }
+    let noder = node.clone().unwrap();
+    // let mut nodebm = nodebm.borrow_mut();
+    if noder.borrow()._left.is_none() && noder.borrow()._right.is_none() {
+        let s = _successor(&node);
+        let sr = s.clone().unwrap();
+        let mut sbm = sr.borrow_mut();
+        noder.borrow_mut()._val = sbm._val.clone();
+        node = s.clone();
+    }
+    let noder = node.clone().unwrap();
+    let mut nodebm = noder.borrow_mut();
+    let replacement = if nodebm._left.is_some() {
+        nodebm._left.clone()
+    } else {
+        nodebm._right.clone()
+    };
+
+    if replacement.is_some() {
+        let replace = replacement.clone().unwrap();
+        let mut replacebm = replace.borrow_mut();
+        replacebm._parent = nodebm._parent.clone();
+        if nodebm._parent.is_none() {
+            *root = replacement.clone();
+        } else {
+            let parent = nodebm._parent.clone().unwrap();
+            let mut pbm = parent.borrow_mut();
+            if node == pbm._left {
+                pbm._left = replacement.clone();
+            } else {
+                pbm._right = replacement.clone();
+            }
+        }
+
+        nodebm._left = None;
+        nodebm._right = None;
+        nodebm._parent = None;
+
+        if nodebm._color == Color::Black {
+            _fix_after_del(&replacement, root);
+        }
+    } else if nodebm._parent.is_none() {
+        *root = None;
+    } else {
+        if nodebm._color == Color::Black {
+            _fix_after_del(&node, root);
+        }
+
+        if nodebm._parent.is_some() {
+            let parent = nodebm._parent.clone().unwrap();
+            let mut parentbm = parent.borrow_mut();
+            if node == parentbm._left {
+                parentbm._left = None;
+            } else if node == parentbm._right {
+                parentbm._right = None;
+            }
+            nodebm._parent = None;
+        }
+    }
+}
+
+//寻找比t大的最小值
+fn _successor<T: PartialEq>(t: &RBInnerNode<T>) -> RBInnerNode<T> {
+    if t.is_none() {
+        return None;
+    }
+    let tb = t.clone().unwrap();
+    let tb = tb.borrow();
+    if tb._right.is_some() {
+        let mut p = tb._right.clone();
+        let pb = p.clone().unwrap();
+        let pb = pb.borrow();
+        while pb._right.is_some() {
+            p = pb._left.clone();
+        }
+        p.clone()
+    } else {
+        let mut p = tb._parent.clone();
+        let mut ch = t.clone();
+        while p.is_some() {
+            let pb = p.clone().unwrap();
+            let pb = pb.borrow();
+            if ch != pb._right {
+                break;
+            }
+            ch = p.clone();
+            p = pb._parent.clone();
+        }
+        p.clone()
+    }
 }
 
 pub fn _insert<T: Ord + Clone>(
@@ -260,9 +333,16 @@ pub fn _insert<T: Ord + Clone>(
 }
 
 /// 插入后处理旋转变色
+/// 								red -> parent设黑、uncle设黑、gp设红、x设为gp
+///	    parent为左    y uncle
+/// 								black->(x若为p的右，设为parent并左旋)、parent设黑、gp设红、右旋gp
+/// 新节点x(不为空、不为root、且父级为红)																	root设黑
+/// 								red -> parent设黑、uncle设黑、gp设红、x设为gp
+/// 		parent为右    y uncle
+/// 								black->(x若为p的左，设为parent并右旋)、parent设黑、gp设红、左旋gp
 fn _fix_after_insert<T: PartialEq + Debug>(
     mut this: Option<Rc<RefCell<RBNode<T>>>>,
-    root: &Option<Rc<RefCell<RBNode<T>>>>,
+    root: &mut Option<Rc<RefCell<RBNode<T>>>>,
 ) {
     while this.is_some() && this != *root {
         let x = this.clone().unwrap();
@@ -284,7 +364,7 @@ fn _fix_after_insert<T: PartialEq + Debug>(
             uncle = None;
             Pos::Right
         };
-        println!("uncle={:?}", uncle);
+        // println!("uncle={:?}", uncle);
         if let Some(u) = uncle {
             let mut ub = u.borrow_mut();
             match ub._color {
@@ -302,22 +382,26 @@ fn _fix_after_insert<T: PartialEq + Debug>(
                             if this == p.borrow()._right {
                                 this = Some(p.clone());
                                 //左旋this
+                                _rotate_left(&this, root);
                             }
                             p.borrow_mut()._color = Color::Black;
                             if let Some(gp) = &grandparent {
                                 gp.borrow_mut()._color = Color::Red;
                                 //右旋gp
+                                _rotate_right(&Some(gp.clone()), root);
                             }
                         }
                         Pos::Right => {
                             if this == p.borrow()._left {
                                 this = Some(p.clone());
                                 //右旋this
+                                _rotate_right(&this, root);
                             }
                             p.borrow_mut()._color = Color::Black;
                             if let Some(gp) = &grandparent {
                                 gp.borrow_mut()._color = Color::Red;
                                 //左旋gp
+                                _rotate_left(&Some(gp.clone()), root);
                             }
                         }
                     }
@@ -330,6 +414,196 @@ fn _fix_after_insert<T: PartialEq + Debug>(
     if let Some(r) = root.as_ref() {
         r.borrow_mut()._color = Color::Black;
     }
+}
+
+fn _fix_after_del<T: PartialEq + Clone + Debug>(x: &RBInnerNode<T>, root: &mut RBInnerNode<T>) {
+    let mut x = x.clone();
+    while &x != root && _color_of(&x) == Color::Black {
+        if x == _left_of(&_parent_of(&x)) {
+            let mut sib = _right_of(&_parent_of(&x));
+
+            if _color_of(&sib) == Color::Red {
+                _set_color(&sib, Color::Black);
+                _set_color(&_parent_of(&x), Color::Red);
+                _rotate_left(&_parent_of(&x), root);
+                sib = _right_of(&_parent_of(&x))
+            }
+
+            if _color_of(&_left_of(&sib)) == Color::Black
+                && _color_of(&_right_of(&sib)) == Color::Black
+            {
+                _set_color(&sib, Color::Red);
+                x = _parent_of(&x);
+            } else {
+                if _color_of(&_right_of(&sib)) == Color::Black {
+                    _set_color(&_left_of(&sib), Color::Black);
+                    _set_color(&sib, Color::Red);
+                    _rotate_right(&sib, root);
+                    sib = _right_of(&_parent_of(&x));
+                }
+
+                _set_color(&sib, _color_of(&_parent_of(&x)));
+                _set_color(&_parent_of(&x), Color::Black);
+                _set_color(&_right_of(&sib), Color::Black);
+                _rotate_left(&_parent_of(&x), root);
+                x = root.clone();
+            }
+        } else {
+            let mut sib = _left_of(&_parent_of(&x));
+
+            if _color_of(&sib) == Color::Red {
+                _set_color(&sib, Color::Black);
+                _set_color(&_parent_of(&x), Color::Red);
+                _rotate_right(&_parent_of(&x), root);
+                sib = _left_of(&_parent_of(&x))
+            }
+
+            if _color_of(&_right_of(&sib)) == Color::Black
+                && _color_of(&_left_of(&sib)) == Color::Black
+            {
+                _set_color(&sib, Color::Red);
+                x = _parent_of(&x);
+            } else {
+                if _color_of(&_left_of(&sib)) == Color::Black {
+                    _set_color(&_right_of(&sib), Color::Black);
+                    _set_color(&sib, Color::Red);
+                    _rotate_left(&sib, root);
+                    sib = _left_of(&_parent_of(&x));
+                }
+
+                _set_color(&sib, _color_of(&_parent_of(&x)));
+                _set_color(&_parent_of(&x), Color::Black);
+                _set_color(&_left_of(&sib), Color::Black);
+                _rotate_right(&_parent_of(&x), root);
+                x = root.clone();
+            }
+        }
+    }
+    _set_color(&x, Color::Black);
+}
+
+fn _set_color<T>(x: &RBInnerNode<T>, c: Color) {
+    if let Some(y) = &x {
+        y.borrow_mut()._color = c;
+    }
+}
+
+fn _parent_of<T: Clone>(x: &RBInnerNode<T>) -> RBInnerNode<T> {
+    if let Some(y) = &x {
+        y.borrow()._parent.clone()
+    } else {
+        None
+    }
+}
+
+fn _left_of<T: Clone>(x: &RBInnerNode<T>) -> RBInnerNode<T> {
+    if let Some(y) = &x {
+        y.borrow()._left.clone()
+    } else {
+        None
+    }
+}
+
+fn _right_of<T: Clone>(x: &RBInnerNode<T>) -> RBInnerNode<T> {
+    if let Some(y) = &x {
+        y.borrow()._right.clone()
+    } else {
+        None
+    }
+}
+
+fn _color_of<T: Clone>(x: &RBInnerNode<T>) -> Color {
+    if x.is_none() {
+        return Color::Black;
+    }
+    let y = x.clone().unwrap();
+    let yb = y.borrow().clone();
+    yb._color
+}
+
+//参考java->TreeMap->rotateLeft
+fn _rotate_left<T: PartialEq>(
+    this: &Option<Rc<RefCell<RBNode<T>>>>,
+    root: &mut Option<Rc<RefCell<RBNode<T>>>>,
+) {
+    if this.is_none() {
+        return;
+    }
+    let thisu = this.clone().unwrap();
+    let mut thisbm = thisu.borrow_mut();
+    //right
+    let r = thisbm._right.clone().unwrap();
+    let mut rbm = r.borrow_mut();
+    //this->right = right->left
+    thisbm._right = rbm._left.clone();
+
+    //right->left->parent = this
+    if rbm._left.is_some() {
+        let rbml = rbm._left.clone().unwrap();
+        rbml.borrow_mut()._parent = this.clone();
+    }
+    //right->parent = this->parent
+    rbm._parent = thisbm._parent.clone();
+    //root = right
+    if thisbm._parent.is_none() {
+        *root = Some(r.clone());
+    } else {
+        let parent = thisbm._parent.clone().unwrap();
+        let mut pbm = parent.borrow_mut();
+        if pbm._left == *this {
+            //this->parent->left = right
+            pbm._left = Some(r.clone());
+        } else {
+            //this->parent->right = right
+            pbm._right = Some(r.clone());
+        }
+    }
+    //right->left = this
+    rbm._left = this.clone();
+    //this->parent = right;
+    thisbm._parent = Some(r.clone());
+}
+
+fn _rotate_right<T: PartialEq>(
+    this: &Option<Rc<RefCell<RBNode<T>>>>,
+    root: &mut Option<Rc<RefCell<RBNode<T>>>>,
+) {
+    if this.is_none() {
+        return;
+    }
+    let thisu = this.clone().unwrap();
+    let mut thisbm = thisu.borrow_mut();
+    //left
+    let l = thisbm._left.clone().unwrap();
+    let mut lbm = l.borrow_mut();
+    //this->left = right->right
+    thisbm._left = lbm._right.clone();
+
+    //left->right->parent = this
+    if lbm._right.is_some() {
+        let lbml = lbm._right.clone().unwrap();
+        lbml.borrow_mut()._parent = this.clone();
+    }
+    //left->parent = this->parent
+    lbm._parent = thisbm._parent.clone();
+    //root = left
+    if thisbm._parent.is_none() {
+        *root = Some(l.clone());
+    } else {
+        let parent = thisbm._parent.clone().unwrap();
+        let mut pbm = parent.borrow_mut();
+        if pbm._right == *this {
+            //this->parent->right = left
+            pbm._right = Some(l.clone());
+        } else {
+            //this->parent->left = left
+            pbm._left = Some(l.clone());
+        }
+    }
+    //left->right = this
+    lbm._right = this.clone();
+    //this->parent = left;
+    thisbm._parent = Some(l.clone());
 }
 
 impl<T: Clone + PartialEq + Debug> RBNode<T> {
@@ -666,7 +940,9 @@ fn test() {
     // rbt.insert(51);
     // rbt.insert(66);
     // rbt.insert(90);
+    rbt.delete(&29);
     println!();
     // rbt.insert(10);
-    println!("rbt={:?}, check:{:?}", rbt, rbt._check());
+    println!("rbt={:?}", rbt);
+    // println!("check:{:?}", rbt._check());
 }

@@ -66,29 +66,17 @@ impl<T> DList<T> {
         }
         self._len += 1;
     }
-    //这里不好改成循环，参考https://blog.csdn.net/weixin_51560951/article/details/122310256
-    fn _get_index_node(
-        &self,
-        node: Rc<RefCell<DNode<T>>>,
-        cur: usize,
-        index: usize,
-    ) -> Option<Rc<RefCell<DNode<T>>>> {
-        // println!("node:{:?}, cur:{}, index:{}", node.clone(), cur, index);
-        if cur >= index {
-            return Some(node);
-        }
-        if let Some(n) = &node.borrow_mut()._next {
-            let a = self._get_index_node(n.clone(), cur + 1, index);
-            return a.clone();
-        }
-        return None;
-    }
 
     //获取index下标处节点
     pub fn get_node(&self, index: usize) -> Option<Rc<RefCell<DNode<T>>>> {
-        if let Some(h) = self._head.as_ref() {
-            // println!("h:{:?}, index:{}", h.clone(), index);
-            return self._get_index_node(h.clone(), 0, index);
+        let mut cur = self._head.clone();
+        let mut i = 0;
+        while let Some(c) = cur {
+            if i == index {
+                return Some(c.clone());
+            }
+            cur = c.borrow()._next.clone();
+            i += 1;
         }
         None
     }
@@ -237,23 +225,25 @@ impl<T: Debug> Debug for DNode<T> {
 fn test() {
     let mut dl = DList::<i32>::default();
     //11 -> 10 -> 9 -> 4 -> 3
-    dl.add_at_head(3);
-    dl.add_at_head(4);
-    dl.add_at_head(9);
-    dl.add_at_head(10);
-    dl.add_at_head(11);
+    // dl.add_at_head(3);
+    // dl.add_at_head(4);
+    // dl.add_at_head(9);
+    // dl.add_at_head(10);
+    // dl.add_at_head(11);
     dl.add_at_tail(5);
     dl.add_at_tail(7);
     dl.add_at_tail(6);
-    dl.add_at_index(0, 1);
-    dl.add_at_index(2, 2);
-    dl.add_at_index(dl._len, 8);
-    println!("dl:{}, len:{}", dl, dl.len());
-    dl.delete_at_index(3);
-    println!("dl:{}, len:{}", dl, dl.len());
-    dl.delete_at_index(0);
-    println!("dl:{}, len:{}", dl, dl.len());
-    dl.delete_at_index(dl.len() - 3);
-    println!("dl:{}, len:{}", dl, dl.len());
-    // println!("dl:{}", dl);
+    // dl.add_at_index(0, 1);
+    // dl.add_at_index(2, 2);
+    // dl.add_at_index(dl._len, 8);
+    // println!("dl:{}, len:{}", dl, dl.len());
+    // dl.delete_at_index(3);
+    // println!("dl:{}, len:{}", dl, dl.len());
+    // dl.delete_at_index(0);
+    // println!("dl:{}, len:{}", dl, dl.len());
+    // dl.delete_at_index(dl.len() - 3);
+    // println!("dl:{}, len:{}", dl, dl.len());
+    println!("dl:{:?}", dl.get_node(0));
+    println!("dl:{:?}", dl.get_node(1));
+    println!("dl:{:?}", dl.get_node(dl.len() - 1));
 }
