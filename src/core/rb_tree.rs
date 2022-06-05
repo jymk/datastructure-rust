@@ -5,10 +5,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::common::{
-    node::{BoxEntity, BoxNode, RcRefEntity, RcRefNode},
-    pos::Pos,
-};
+use crate::common::pos::Pos;
 
 //每个节点是红的或者黑的
 //根节点是黑的
@@ -51,6 +48,12 @@ impl<T> RBTree<T> {
     }
 }
 
+impl<T: Clone + Ord + Debug> RBTree<T> {
+    fn get_node(&self, t: &T) -> RBInnerNode<T> {
+        _get_node(&self._root, &Some(t.clone()))
+    }
+}
+
 impl<T: Clone + Ord + PartialEq + Debug> RBTree<T> {
     pub fn insert(&mut self, val: T) {
         // println!("\nval={:?}", val);
@@ -80,7 +83,7 @@ impl<T: Clone + Debug> RBTree<T> {
 }
 
 impl<T> RBNode<T> {
-    pub fn new(val: T, color: Color, parent: Option<Rc<RefCell<RBNode<T>>>>) -> Self {
+    pub fn new(val: T, color: Color, parent: RBInnerNode<T>) -> Self {
         Self {
             _left: None,
             _right: None,
@@ -139,7 +142,7 @@ impl<T> RBNode<T> {
     }
 }
 
-fn _check<T: Clone>(pnode: &Option<Rc<RefCell<RBNode<T>>>>, count: usize, mut tmp: usize) -> bool {
+fn _check<T: Clone>(pnode: &RBInnerNode<T>, count: usize, mut tmp: usize) -> bool {
     if pnode.is_none() {
         return true;
     }
@@ -160,14 +163,11 @@ fn _check<T: Clone>(pnode: &Option<Rc<RefCell<RBNode<T>>>>, count: usize, mut tm
     _check(&node._left, count, tmp) && _check(&node._right, count, tmp)
 }
 
-fn _get_node<T: Ord + Debug>(
-    node: &Option<Rc<RefCell<RBNode<T>>>>,
-    val: &Option<T>,
-) -> Option<Rc<RefCell<RBNode<T>>>> {
-    if node.is_none() {
+fn _get_node<T: Ord + Debug>(root: &RBInnerNode<T>, val: &Option<T>) -> RBInnerNode<T> {
+    if root.is_none() {
         return None;
     }
-    let mut cur = node.clone();
+    let mut cur = root.clone();
     while cur.is_some() {
         let tmp = cur.clone().unwrap();
         let tmp = tmp.borrow();
@@ -198,7 +198,6 @@ fn _delete<T: Ord + Clone + PartialEq + Debug>(root: &mut RBInnerNode<T>, val: &
         return;
     }
     let noder = node.clone().unwrap();
-    // let mut nodebm = nodebm.borrow_mut();
     if noder.borrow()._left.is_none() && noder.borrow()._right.is_none() {
         let s = _successor(&node);
         let sr = s.clone().unwrap();
@@ -216,8 +215,7 @@ fn _delete<T: Ord + Clone + PartialEq + Debug>(root: &mut RBInnerNode<T>, val: &
 
     if replacement.is_some() {
         let replace = replacement.clone().unwrap();
-        let mut replacebm = replace.borrow_mut();
-        replacebm._parent = nodebm._parent.clone();
+        replace.borrow_mut()._parent = nodebm._parent.clone();
         if nodebm._parent.is_none() {
             *root = replacement.clone();
         } else {
@@ -288,10 +286,7 @@ fn _successor<T: PartialEq>(t: &RBInnerNode<T>) -> RBInnerNode<T> {
     }
 }
 
-pub fn _insert<T: Ord + Clone>(
-    this: &mut Option<Rc<RefCell<RBNode<T>>>>,
-    val: T,
-) -> Option<Rc<RefCell<RBNode<T>>>> {
+pub fn _insert<T: Ord + Clone>(this: &mut RBInnerNode<T>, val: T) -> RBInnerNode<T> {
     if this.is_none() {
         let root = Rc::new(RefCell::new(RBNode::new_black(val.clone())));
         *this = Some(root.clone());
@@ -340,10 +335,7 @@ pub fn _insert<T: Ord + Clone>(
 /// 								red -> parent设黑、uncle设黑、gp设红、x设为gp
 /// 		parent为右    y uncle
 /// 								black->(x若为p的左，设为parent并右旋)、parent设黑、gp设红、左旋gp
-fn _fix_after_insert<T: PartialEq + Debug>(
-    mut this: Option<Rc<RefCell<RBNode<T>>>>,
-    root: &mut Option<Rc<RefCell<RBNode<T>>>>,
-) {
+fn _fix_after_insert<T: PartialEq + Debug>(mut this: RBInnerNode<T>, root: &mut RBInnerNode<T>) {
     while this.is_some() && this != *root {
         let x = this.clone().unwrap();
         let p = x.borrow()._parent.clone().unwrap();
@@ -418,7 +410,7 @@ fn _fix_after_insert<T: PartialEq + Debug>(
 
 fn _fix_after_del<T: PartialEq + Clone + Debug>(x: &RBInnerNode<T>, root: &mut RBInnerNode<T>) {
     let mut x = x.clone();
-    while &x != root && _color_of(&x) == Color::Black {
+    while x != *root && _color_of(&x) == Color::Black {
         if x == _left_of(&_parent_of(&x)) {
             let mut sib = _right_of(&_parent_of(&x));
 
@@ -522,10 +514,8 @@ fn _color_of<T: Clone>(x: &RBInnerNode<T>) -> Color {
 }
 
 //参考java->TreeMap->rotateLeft
-fn _rotate_left<T: PartialEq>(
-    this: &Option<Rc<RefCell<RBNode<T>>>>,
-    root: &mut Option<Rc<RefCell<RBNode<T>>>>,
-) {
+//这里自己实现应该也没什么问题，只是之前陷入了传参为RBNode而非Rc RefCell RBNode，会使RBNode并非一个对象的问题
+fn _rotate_left<T: PartialEq>(this: &RBInnerNode<T>, root: &mut RBInnerNode<T>) {
     if this.is_none() {
         return;
     }
@@ -564,10 +554,7 @@ fn _rotate_left<T: PartialEq>(
     thisbm._parent = Some(r.clone());
 }
 
-fn _rotate_right<T: PartialEq>(
-    this: &Option<Rc<RefCell<RBNode<T>>>>,
-    root: &mut Option<Rc<RefCell<RBNode<T>>>>,
-) {
+fn _rotate_right<T: PartialEq>(this: &RBInnerNode<T>, root: &mut RBInnerNode<T>) {
     if this.is_none() {
         return;
     }
@@ -606,6 +593,7 @@ fn _rotate_right<T: PartialEq>(
     thisbm._parent = Some(l.clone());
 }
 
+//此处代码全部未用到
 impl<T: Clone + PartialEq + Debug> RBNode<T> {
     //执行旋转或变色
     //pos: 当前为左子树就传left，右子树就传right
@@ -815,51 +803,6 @@ impl<T: Clone + PartialEq + Debug> RBNode<T> {
     }
 }
 
-impl<T: Ord + Clone> RcRefEntity<T> for RBTree<T> {
-    type U = RBNode<T>;
-
-    fn get_node(&self, t: &T) -> Option<Rc<RefCell<Self::U>>> {
-        if let Some(x) = &self._root {
-            return x.borrow().get_node(&Some(t));
-        }
-        None
-    }
-}
-
-impl<T: Ord + Clone> RcRefNode<T> for RBNode<T> {
-    type U = Self;
-
-    fn get_node(&self, t: &Option<&T>) -> Option<Rc<RefCell<Self::U>>> {
-        match t.cmp(&self._val.as_ref()) {
-            std::cmp::Ordering::Equal => {
-                // if let Some(x) = &self._parent {
-                //     let tmp = Some(Rc::new(RefCell::new(self.clone())));
-                //     if x.borrow()._left == tmp {
-                //         return x.borrow()._left.clone();
-                //     } else {
-                //         return None;
-                //     }
-                // }
-                Some(Rc::new(RefCell::new((*self).clone())))
-            }
-            std::cmp::Ordering::Less => {
-                if let Some(x) = &self._left {
-                    x.borrow().get_node(t)
-                } else {
-                    None
-                }
-            }
-            std::cmp::Ordering::Greater => {
-                if let Some(x) = &self._right {
-                    x.borrow().get_node(t)
-                } else {
-                    None
-                }
-            }
-        }
-    }
-}
-
 impl<T> Default for RBTree<T> {
     fn default() -> Self {
         Self { _root: None }
@@ -933,16 +876,16 @@ fn test() {
     // rbt.insert(12);
     rbt.insert(77);
     rbt.insert(10);
-    // rbt.insert(30);
-    // rbt.insert(55);
-    // rbt.insert(80);
-    // rbt.insert(18);
-    // rbt.insert(51);
-    // rbt.insert(66);
-    // rbt.insert(90);
+    rbt.insert(30);
+    rbt.insert(55);
+    rbt.insert(80);
+    rbt.insert(18);
+    rbt.insert(51);
+    rbt.insert(66);
+    rbt.insert(90);
     rbt.delete(&29);
     println!();
     // rbt.insert(10);
     println!("rbt={:?}", rbt);
-    // println!("check:{:?}", rbt._check());
+    println!("check:{:?}", rbt._check());
 }
