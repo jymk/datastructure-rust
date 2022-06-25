@@ -513,6 +513,12 @@ fn _color_of<T: Clone>(x: &RBInnerNode<T>) -> Color {
     yb._color
 }
 
+///////////////////////////////////////////////
+///      2              左旋              4
+/// 1        4         -->       2             5
+///        3   5      <--     1  3
+///                     右旋
+//////////////////////////////////////////////
 //参考java->TreeMap->rotateLeft
 //这里自己实现应该也没什么问题，只是之前陷入了传参为RBNode而非Rc RefCell RBNode，会使RBNode并非一个对象的问题
 fn _rotate_left<T: PartialEq>(this: &RBInnerNode<T>, root: &mut RBInnerNode<T>) {
@@ -666,71 +672,6 @@ impl<T: Clone + PartialEq + Debug> RBNode<T> {
             Stat::BL => self._rotatel(root),
             Stat::BR => self._rotater(root),
             Stat::R => self._change_color(pos),
-        }
-    }
-    //左旋，self为4点
-    ///////////////////////////////////////////////
-    ///      2              左旋              4
-    /// 1        4         -->       2             5
-    ///        3   5      <--     1  3
-    ///                     右旋
-    //////////////////////////////////////////////
-    fn _rotatel(&mut self, root: &mut Self) {
-        let mut r = self._right.clone();
-        let mut gp = self._parent.clone();
-        let this = Rc::new(RefCell::new(self.clone()));
-        if let Some(x) = &r {
-            let rl = x.borrow()._left.clone();
-            self._right = rl.clone();
-            if let Some(y) = &rl {
-                y.borrow_mut()._parent = Some(this.clone());
-            }
-            x.borrow_mut()._left = Some(this.clone());
-
-            self._parent = Some(x.clone());
-            x.borrow_mut()._parent = gp.clone();
-            if gp.is_none() {
-                *root = x.borrow().clone();
-            }
-        }
-        if gp.is_some() {
-            let gpu = gp.clone().unwrap();
-            let pos = if gpu.borrow()._left == Some(this.clone()) {
-                Pos::Left
-            } else {
-                Pos::Right
-            };
-            match pos {
-                Pos::Left => gpu.borrow_mut()._left = r.clone(),
-                Pos::Right => gpu.borrow_mut()._right = r.clone(),
-            }
-        }
-    }
-    fn _rotater(&mut self, root: &mut Self) {
-        let mut l = self._left.clone();
-        let mut gp = self._parent.clone();
-        let this = Rc::new(RefCell::new(self.clone()));
-        if let Some(x) = &l {
-            let lr = x.borrow()._right.clone();
-            self._right = lr.clone();
-            if let Some(y) = &lr {
-                y.borrow_mut()._parent = Some(this.clone());
-            }
-            x.borrow_mut()._right = Some(this.clone());
-
-            self._parent = Some(x.clone());
-            x.borrow_mut()._parent = gp.clone();
-            if gp.is_none() {
-                *root = x.borrow().clone();
-            }
-        }
-        if gp.is_some() {
-            let gpu = gp.unwrap();
-            if gpu.borrow()._left == Some(this.clone()) {
-                gpu.borrow_mut()._left = l.clone();
-            } else {
-                gpu.borrow_mut()._right = l.clone();
-            }
         }
     }
     fn _rotate_left(&mut self) {
