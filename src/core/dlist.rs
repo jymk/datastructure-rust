@@ -7,18 +7,18 @@ use std::{
 /// 双向链表
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DList<T> {
-    _head: InnerNode<T>,
+    _head: DInnerNode<T>,
     _len: usize,
 }
 
 //rc起到指针的作用，为了使prev引的对象与上上一个的next的是同一个对象
-type InnerNode<T> = Option<Rc<RefCell<DNode<T>>>>;
+type DInnerNode<T> = Option<Rc<RefCell<DNode<T>>>>;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct DNode<T> {
     _val: T,
-    _next: InnerNode<T>,
-    _prev: InnerNode<T>,
+    _next: DInnerNode<T>,
+    _prev: DInnerNode<T>,
 }
 impl<T> DNode<T> {
     pub fn new(val: T) -> Self {
@@ -38,6 +38,34 @@ impl<T> DNode<T> {
             Some(v) => Some(v),
             None => None,
         }
+    }
+
+    //上一个节点
+    pub fn prev(&self) -> Option<&Rc<RefCell<Self>>> {
+        match &self._prev {
+            Some(v) => Some(v),
+            None => None,
+        }
+    }
+
+    // 获取下一个节点的拷贝
+    pub fn next_cp(&self) -> DInnerNode<T> {
+        self._next.clone()
+    }
+
+    // 获取上一个节点的拷贝
+    pub fn prev_cp(&self) -> DInnerNode<T> {
+        self._prev.clone()
+    }
+
+    // 获取上一个节点的可变引用
+    pub fn prev_mut(&mut self) -> &mut DInnerNode<T> {
+        &mut self._prev
+    }
+
+    // 获取下一个节点的可变引用
+    pub fn next_mut(&mut self) -> &mut DInnerNode<T> {
+        &mut self._next
     }
     //当前可变值
     pub fn get_mut(&mut self) -> &mut T {

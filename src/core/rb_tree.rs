@@ -600,149 +600,149 @@ fn _rotate_right<T: PartialEq>(this: &RBInnerNode<T>, root: &mut RBInnerNode<T>)
 }
 
 //此处代码全部未用到
-impl<T: Clone + PartialEq + Debug> RBNode<T> {
-    //执行旋转或变色
-    //pos: 当前为左子树就传left，右子树就传right
-    fn _operate(&mut self, root: &mut Self, pos: Pos) {
-        if self._parent.is_none() {
-            return;
-        }
+// impl<T: Clone + PartialEq + Debug> RBNode<T> {
+//     //执行旋转或变色
+//     //pos: 当前为左子树就传left，右子树就传right
+//     fn _operate(&mut self, root: &mut Self, pos: Pos) {
+//         if self._parent.is_none() {
+//             return;
+//         }
 
-        #[derive(Debug)]
-        enum Stat {
-            BL,
-            BR,
-            R,
-        }
-        let judge_uncle_stat = |color: Color| -> Stat {
-            match color {
-                Color::Black => match pos {
-                    Pos::Left => Stat::BL,
-                    Pos::Right => Stat::BR,
-                },
-                Color::Red => Stat::R,
-            }
-        };
-        /// 父红，叔黑，且当前节点是右子树，以父节点左旋
-        /// 父红，叔黑，且当前节点是左子树，以父节点右旋
-        /// 父节点为红，叔叔也为红时，变色
-        let stat = if let Some(p) = &self._parent {
-            // 父黑
-            if p.borrow()._color == Color::Black {
-                return;
-            }
-            // println!("parent={:?}", p);
-            if let Some(gp) = &p.borrow()._parent {
-                let gpb = gp.borrow();
-                // println!(
-                //     "gpb: _left={:?}, _right={:?}, val={:?}, color={:?}",
-                //     gpb._left,
-                //     gpb._right,
-                //     p.borrow()._val,
-                //     p.borrow()._color
-                // );
-                let pc = Some(p.clone());
-                if gpb._right == pc {
-                    println!("is right");
-                    if let Some(u) = &gpb._left {
-                        judge_uncle_stat(u.borrow()._color)
-                    } else {
-                        judge_uncle_stat(Color::Black)
-                    }
-                } else if gpb._left == pc {
-                    println!("is left");
-                    if let Some(u) = &gpb._right {
-                        judge_uncle_stat(u.borrow()._color)
-                    } else {
-                        judge_uncle_stat(Color::Black)
-                    }
-                } else {
-                    println!("error");
-                    return;
-                }
-            } else {
-                return;
-            }
-        } else {
-            return;
-        };
+//         #[derive(Debug)]
+//         enum Stat {
+//             BL,
+//             BR,
+//             R,
+//         }
+//         let judge_uncle_stat = |color: Color| -> Stat {
+//             match color {
+//                 Color::Black => match pos {
+//                     Pos::Left => Stat::BL,
+//                     Pos::Right => Stat::BR,
+//                 },
+//                 Color::Red => Stat::R,
+//             }
+//         };
+//         /// 父红，叔黑，且当前节点是右子树，以父节点左旋
+//         /// 父红，叔黑，且当前节点是左子树，以父节点右旋
+//         /// 父节点为红，叔叔也为红时，变色
+//         let stat = if let Some(p) = &self._parent {
+//             // 父黑
+//             if p.borrow()._color == Color::Black {
+//                 return;
+//             }
+//             // println!("parent={:?}", p);
+//             if let Some(gp) = &p.borrow()._parent {
+//                 let gpb = gp.borrow();
+//                 // println!(
+//                 //     "gpb: _left={:?}, _right={:?}, val={:?}, color={:?}",
+//                 //     gpb._left,
+//                 //     gpb._right,
+//                 //     p.borrow()._val,
+//                 //     p.borrow()._color
+//                 // );
+//                 let pc = Some(p.clone());
+//                 if gpb._right == pc {
+//                     println!("is right");
+//                     if let Some(u) = &gpb._left {
+//                         judge_uncle_stat(u.borrow()._color)
+//                     } else {
+//                         judge_uncle_stat(Color::Black)
+//                     }
+//                 } else if gpb._left == pc {
+//                     println!("is left");
+//                     if let Some(u) = &gpb._right {
+//                         judge_uncle_stat(u.borrow()._color)
+//                     } else {
+//                         judge_uncle_stat(Color::Black)
+//                     }
+//                 } else {
+//                     println!("error");
+//                     return;
+//                 }
+//             } else {
+//                 return;
+//             }
+//         } else {
+//             return;
+//         };
 
-        println!("stat={:?}\n", stat);
-        match stat {
-            Stat::BL => self._rotatel(root),
-            Stat::BR => self._rotater(root),
-            Stat::R => self._change_color(pos),
-        }
-    }
-    fn _rotate_left(&mut self) {
-        let this = Rc::new(RefCell::new(self.clone()));
-        let p_clone = self._parent.clone();
-        let mut r_left = self._left.clone();
-        if let Some(p) = &p_clone {
-            let clonep = p.borrow().clone();
-            if let Some(pp) = &clonep._parent {
-                //设置4的父级为2的父级
-                this.borrow_mut()._parent = Some(pp.clone());
-                //设置2的父级的子级为4
-                let is_left = pp.borrow()._left == Some(p.clone());
-                let tmp = Some(this.clone());
-                if is_left {
-                    pp.borrow_mut()._left = tmp;
-                } else {
-                    pp.borrow_mut()._right = tmp;
-                }
-            }
-            //设置2的父级为4
-            p.borrow_mut()._parent = Some(this.clone());
-            //设置4的子级为2
-            let p_opt = Some(Rc::new(RefCell::new(p.borrow().clone())));
-            this.borrow_mut()._left = p_opt.clone();
-            //设置3的父级为2
-            if let Some(x) = &r_left {
-                x.borrow_mut()._parent = p_opt;
-            }
-            //设置2的右侧为3
-            p.borrow_mut()._right = r_left;
-        }
-    }
-    //右旋，self为2点
-    ///////////////////////////////////////////////
-    ///      2              左旋              4
-    /// 1        4         -->       2             5
-    ///        3   5      <--     1  3
-    ///                     右旋
-    //////////////////////////////////////////////
-    fn _rotate_right(&mut self) {
-        let this = Rc::new(RefCell::new(self.clone()));
-        let p_clone = self._parent.clone();
-        let mut r_right = self._right.clone();
-        if let Some(p) = p_clone.as_ref() {
-            if let Some(pp) = p.borrow()._parent.as_ref() {
-                //设置4的父级的子级为2
-                let is_left = pp.borrow()._left == Some(p.clone());
-                let tmp = Some(this.clone());
-                if is_left {
-                    pp.borrow_mut()._left = tmp;
-                } else {
-                    pp.borrow_mut()._right = tmp;
-                }
-                //设置2的父级为4的父级
-                this.borrow_mut()._parent = Some(pp.clone());
-            }
-            //设置4的父级为2
-            p.borrow_mut()._parent = Some(this.clone());
-            let p_opt = Some(Rc::new(RefCell::new(p.borrow().clone())));
-            //设置2的子级为4
-            this.borrow_mut()._right = p_opt.clone();
-            //设置3的父级为4
-            if let Some(x) = &r_right {
-                x.borrow_mut()._parent = p_opt;
-            }
-            //设置4的左侧为3
-            p.borrow_mut()._left = r_right;
-        };
-    }
-}
+//         println!("stat={:?}\n", stat);
+//         match stat {
+//             Stat::BL => self._rotatel(root),
+//             Stat::BR => self._rotater(root),
+//             Stat::R => self._change_color(pos),
+//         }
+//     }
+//     fn _rotate_left(&mut self) {
+//         let this = Rc::new(RefCell::new(self.clone()));
+//         let p_clone = self._parent.clone();
+//         let mut r_left = self._left.clone();
+//         if let Some(p) = &p_clone {
+//             let clonep = p.borrow().clone();
+//             if let Some(pp) = &clonep._parent {
+//                 //设置4的父级为2的父级
+//                 this.borrow_mut()._parent = Some(pp.clone());
+//                 //设置2的父级的子级为4
+//                 let is_left = pp.borrow()._left == Some(p.clone());
+//                 let tmp = Some(this.clone());
+//                 if is_left {
+//                     pp.borrow_mut()._left = tmp;
+//                 } else {
+//                     pp.borrow_mut()._right = tmp;
+//                 }
+//             }
+//             //设置2的父级为4
+//             p.borrow_mut()._parent = Some(this.clone());
+//             //设置4的子级为2
+//             let p_opt = Some(Rc::new(RefCell::new(p.borrow().clone())));
+//             this.borrow_mut()._left = p_opt.clone();
+//             //设置3的父级为2
+//             if let Some(x) = &r_left {
+//                 x.borrow_mut()._parent = p_opt;
+//             }
+//             //设置2的右侧为3
+//             p.borrow_mut()._right = r_left;
+//         }
+//     }
+//     //右旋，self为2点
+//     ///////////////////////////////////////////////
+//     ///      2              左旋              4
+//     /// 1        4         -->       2             5
+//     ///        3   5      <--     1  3
+//     ///                     右旋
+//     //////////////////////////////////////////////
+//     fn _rotate_right(&mut self) {
+//         let this = Rc::new(RefCell::new(self.clone()));
+//         let p_clone = self._parent.clone();
+//         let mut r_right = self._right.clone();
+//         if let Some(p) = p_clone.as_ref() {
+//             if let Some(pp) = p.borrow()._parent.as_ref() {
+//                 //设置4的父级的子级为2
+//                 let is_left = pp.borrow()._left == Some(p.clone());
+//                 let tmp = Some(this.clone());
+//                 if is_left {
+//                     pp.borrow_mut()._left = tmp;
+//                 } else {
+//                     pp.borrow_mut()._right = tmp;
+//                 }
+//                 //设置2的父级为4的父级
+//                 this.borrow_mut()._parent = Some(pp.clone());
+//             }
+//             //设置4的父级为2
+//             p.borrow_mut()._parent = Some(this.clone());
+//             let p_opt = Some(Rc::new(RefCell::new(p.borrow().clone())));
+//             //设置2的子级为4
+//             this.borrow_mut()._right = p_opt.clone();
+//             //设置3的父级为4
+//             if let Some(x) = &r_right {
+//                 x.borrow_mut()._parent = p_opt;
+//             }
+//             //设置4的左侧为3
+//             p.borrow_mut()._left = r_right;
+//         };
+//     }
+// }
 
 impl<T> Default for RBTree<T> {
     fn default() -> Self {
